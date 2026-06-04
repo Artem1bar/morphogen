@@ -180,3 +180,46 @@ Ship the **X/Bluesky launch thread this week** to start the flywheel, and build
 the **Bluesky bot** as the content engine. Curate ~3 gorgeous seeds per system
 first (they anchor the thread, the bot, and the curated opening). Hold Show HN
 until there's a body of shared creations to point at.
+
+---
+
+## Mobile (needs a real device — do this as a focused session)
+
+Most launch traffic will be mobile, so this matters. Layout is already
+responsive (canvas on top, controls as a bottom sheet) and touch works (pointer
+events + `touch-action: none`). **Shipped quick wins:** lower DPR cap on phones
+(`canvas.js`), and a touch-device CSS block (bigger tap targets, no keyboard
+legend). The real work below needs validation on actual hardware — it can't be
+measured in a desktop headless browser.
+
+**The big one — per-device performance scaling.** The grid systems are tuned for
+desktop; on a phone CPU, Lenia (convolution), reaction–diffusion (multi-step),
+and domain-warp (5 fBm/px) are likely sluggish. The clean fix:
+
+1. Add a `quality` scalar to the engine's SystemContext — `1.0` on desktop, lower
+   on phones (derive from `min(innerW, innerH)` and `matchMedia('(pointer:coarse)')`;
+   target ~0.6). Build it once in `engine.js` next to `dpr`.
+2. Have each grid system size its sim buffer from that scalar instead of a hard
+   constant: `Math.round(BASE * c.quality)` for `SIM`/`GW`/`SIZE`/`TW`/`MAXDIM`/
+   `DW`, and scale particle/agent counts (flowfield, boids, particlelife,
+   physarum) the same way. Gate so desktop stays byte-for-byte as it is now
+   (zero regression risk to the verified desktop build).
+3. **Validate on a real phone** (or BrowserStack / a Vercel preview opened on a
+   device): walk all 12, watch the fps meter, tune the scalar per system until
+   the heavy three hold ~30fps. This is the step that can't be skipped or faked.
+
+**Other mobile polish:**
+- Fix the panel-collapse layout quirk (canvas overshoots the viewport) — it's
+  more visible on mobile orientation changes.
+- Re-test orientation changes (the ResizeObserver should re-init; confirm no
+  black frame on rotate).
+- Consider a "tap to reveal controls" so the canvas can go full-bleed on a phone
+  (the art is the point; the panel eats ~42vh).
+- Pinch-zoom: `touch-action: none` on the canvas handles drag, but verify a
+  two-finger pinch over the canvas doesn't zoom the page mid-interaction.
+- iOS Safari: confirm `100vh` doesn't jump with the URL bar (use `100dvh` /
+  `-webkit-fill-available` if it does); `viewport-fit=cover` is already set.
+
+**Why deferred:** mobile performance is the kind of thing you cannot honestly
+sign off without a real device, and pushing unverified perf changes straight to a
+live public site is the wrong move. Do it as a focused pass with a phone in hand.

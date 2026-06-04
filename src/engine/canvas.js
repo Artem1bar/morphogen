@@ -38,7 +38,12 @@ export class Stage {
    */
   resize() {
     const rect = this.canvas.getBoundingClientRect();
-    const dpr = Math.min(this.maxDpr, globalThis.devicePixelRatio || 1);
+    // On small screens (phones) cap the pixel ratio harder: the backing store
+    // is the upscale target + the draw surface for particle systems, so a lower
+    // cap cuts fill rate and per-pixel cost meaningfully. Desktop is unaffected.
+    const vmin = Math.min(globalThis.innerWidth || 9999, globalThis.innerHeight || 9999);
+    const cap = vmin <= 540 ? 1.5 : this.maxDpr;
+    const dpr = Math.min(cap, globalThis.devicePixelRatio || 1);
     const w = Math.max(1, Math.round(rect.width));
     const h = Math.max(1, Math.round(rect.height));
     const pw = Math.round(w * dpr);

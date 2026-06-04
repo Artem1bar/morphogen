@@ -285,3 +285,19 @@ input[type="range"]::-moz-range-thumb {
   .panel { max-height: 42vh; border-left: 0; border-top: 1px solid var(--line); }
   .system-blurb { display: none; }
 }
+
+/* Touch / coarse-pointer devices: drop keyboard-only chrome, grow tap targets
+   to ~44px, make sliders thumb-friendly. Scoped so desktop is untouched. */
+@media (hover: none) and (pointer: coarse) {
+  .panel-foot { display: none; }            /* keyboard legend is useless on touch */
+  .icon-btn { width: 40px; height: 40px; font-size: 16px; }
+  .seed-field .icon-btn { width: 30px; height: 30px; }
+  .param-row { padding: 13px 0; }
+  input[type="range"] { height: 5px; }
+  input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; }
+  input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; }
+  .param-toggle { min-width: 64px; padding: 9px 15px; }
+  .param-select { padding: 10px 11px; }
+  .gallery-overlay { padding: 24px 12px; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; }
+}
