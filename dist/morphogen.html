@@ -1,0 +1,5025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Morphogen · Generative Systems Studio</title>
+  <meta name="description" content="A studio of generative and artificial-life systems — flow fields, reaction–diffusion, particle life, Lenia and more. Seedable, tunable, shareable." />
+  <style>
+/* Morphogen — studio chrome. Near-black stage, restrained warm/cool accents,
+   a typographic UI that stays out of the artwork's way. */
+
+:root {
+  --bg: #07080c;
+  --bg-elev: #0d0f16;
+  --bg-elev-2: #141722;
+  --line: #20242f;
+  --line-soft: #181b24;
+  --text: #e7e9ef;
+  --text-dim: #9aa0b0;
+  --text-faint: #626878;
+  --accent: #52c5c9;
+  --accent-warm: #e98f86;
+  --accent-press: #2a2f3c;
+  --danger: #ff5d5d;
+  --radius: 9px;
+  --radius-sm: 6px;
+  --panel-w: 312px;
+  --toolbar-h: 56px;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  grid-template-columns: 1fr var(--panel-w);
+  grid-template-rows: var(--toolbar-h) 1fr;
+  grid-template-areas:
+    "toolbar toolbar"
+    "stage   panel";
+  height: 100vh;
+}
+
+body.panel-collapsed {
+  grid-template-columns: 1fr 0;
+}
+body.panel-collapsed .panel { transform: translateX(100%); opacity: 0; pointer-events: none; }
+
+/* ---------------------------------------------------------------- toolbar */
+.toolbar {
+  grid-area: toolbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 14px;
+  background: linear-gradient(180deg, var(--bg-elev) 0%, #0a0c12 100%);
+  border-bottom: 1px solid var(--line);
+  z-index: 20;
+}
+.toolbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.toolbar-right { display: flex; align-items: center; gap: 7px; }
+
+.btn-systems {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 12px;
+  font-weight: 600; font-size: 14px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+}
+.btn-systems:hover { border-color: #2d3340; }
+.logo-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--accent), #185f6e 70%);
+  box-shadow: 0 0 12px rgba(82, 197, 201, 0.5);
+}
+.brand { letter-spacing: 0.2px; }
+.chev { color: var(--text-faint); font-size: 11px; }
+
+.system-meta { display: flex; flex-direction: column; min-width: 0; }
+.system-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.system-blurb {
+  font-size: 11.5px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 42ch;
+}
+
+.divider { width: 1px; height: 22px; background: var(--line); margin: 0 3px; }
+
+/* buttons */
+.btn {
+  appearance: none;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+  user-select: none;
+}
+.btn:hover { background: #1a1e29; }
+.btn:active { transform: translateY(1px); background: var(--accent-press); }
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; font-size: 15px; line-height: 1;
+}
+#btn-record.recording {
+  color: var(--danger); border-color: var(--danger);
+  box-shadow: 0 0 0 1px rgba(255, 93, 93, 0.25);
+  animation: pulse 1.3s ease-in-out infinite;
+}
+@keyframes pulse { 50% { box-shadow: 0 0 14px rgba(255, 93, 93, 0.45); } }
+
+/* seed field */
+.seed-field {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 4px 3px 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.seed-field label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.6px; }
+.seed-field input {
+  width: 124px;
+  background: transparent; border: 0; outline: none;
+  color: var(--text); font-family: var(--mono); font-size: 12.5px;
+}
+.seed-field .icon-btn { width: 26px; height: 26px; font-size: 13px; }
+
+/* ------------------------------------------------------------------ stage */
+.stage-wrap { grid-area: stage; position: relative; overflow: hidden; background: var(--bg); }
+#stage { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+
+.status-bar {
+  position: absolute; left: 12px; bottom: 10px;
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11.5px; color: var(--text-faint);
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.status-fps { font-family: var(--mono); color: var(--text-dim); }
+.status-hint { opacity: 0.7; }
+
+.toast {
+  position: absolute; left: 50%; bottom: 26px; transform: translate(-50%, 12px);
+  padding: 9px 16px; border-radius: 999px;
+  background: rgba(20, 23, 34, 0.92); border: 1px solid var(--line);
+  color: var(--text); font-size: 12.5px; backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none; transition: opacity 200ms ease, transform 200ms ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ------------------------------------------------------------------ panel */
+.panel {
+  grid-area: panel;
+  display: flex; flex-direction: column;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--line);
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1), opacity 180ms ease;
+  z-index: 10;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 14px; border-bottom: 1px solid var(--line-soft);
+}
+.panel-head h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: var(--text-dim); }
+.panel-body { flex: 1; overflow-y: auto; padding: 6px 14px 16px; }
+.panel-foot { padding: 10px 14px; border-top: 1px solid var(--line-soft); }
+.kbd-legend { font-size: 10.5px; color: var(--text-faint); line-height: 1.7; }
+kbd {
+  font-family: var(--mono); font-size: 10px;
+  background: var(--bg-elev-2); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 5px; color: var(--text-dim);
+}
+
+/* param rows */
+.param-row { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.param-row:last-child { border-bottom: 0; }
+.param-label {
+  display: block; font-size: 12px; color: var(--text-dim);
+  margin-bottom: 7px; font-weight: 500;
+}
+.param-control { display: flex; align-items: center; gap: 10px; }
+.param-value {
+  min-width: 46px; text-align: right;
+  font-family: var(--mono); font-size: 11.5px; color: var(--accent);
+}
+.param-hint { margin-top: 6px; font-size: 10.5px; color: var(--text-faint); line-height: 1.4; }
+
+/* range input */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 3px; border-radius: 3px;
+  background: var(--line); outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-elev);
+  box-shadow: 0 0 0 1px var(--accent); cursor: pointer;
+  transition: transform 80ms ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.18); }
+input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-elev); cursor: pointer;
+}
+
+/* toggle */
+.param-toggle {
+  min-width: 58px; padding: 6px 12px; font-size: 12px;
+  background: var(--bg-elev-2); border: 1px solid var(--line);
+  border-radius: 999px; color: var(--text-dim); cursor: pointer;
+}
+.param-toggle.on { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+/* select */
+.param-select {
+  flex: 1; padding: 7px 9px; font-family: inherit; font-size: 12.5px;
+  color: var(--text); background: var(--bg-elev-2);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer;
+}
+.param-color {
+  width: 44px; height: 28px; padding: 0; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--bg-elev-2); cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- gallery */
+.gallery-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(4, 5, 9, 0.66); backdrop-filter: blur(7px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 64px 20px; overflow-y: auto;
+}
+.gallery-overlay.open { display: flex; animation: fade 160ms ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.gallery-panel {
+  width: min(960px, 100%);
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 16px; box-shadow: var(--shadow);
+  padding: 22px 24px 28px;
+}
+.gallery-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.gallery-header h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.gallery-close {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--bg-elev-2); border: 1px solid var(--line);
+  color: var(--text-dim); cursor: pointer; font-size: 14px;
+}
+.gallery-close:hover { color: var(--text); }
+.gallery-group { margin-top: 18px; }
+.gallery-group h3 {
+  margin: 0 0 10px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-faint);
+}
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 11px; }
+.gallery-card {
+  display: flex; flex-direction: column; gap: 5px; text-align: left;
+  padding: 14px; border-radius: 11px; cursor: pointer;
+  background: var(--bg-elev-2); border: 1px solid var(--line);
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.gallery-card:hover { transform: translateY(-2px); border-color: #333a49; background: #181c27; }
+.gallery-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.gallery-card-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.gallery-card-blurb { font-size: 11.5px; color: var(--text-dim); line-height: 1.45; }
+
+/* scrollbars */
+.panel-body::-webkit-scrollbar, .gallery-overlay::-webkit-scrollbar { width: 10px; }
+.panel-body::-webkit-scrollbar-thumb, .gallery-overlay::-webkit-scrollbar-thumb {
+  background: var(--line); border-radius: 6px; border: 3px solid var(--bg-elev);
+}
+
+/* responsive: collapse the panel into a bottom sheet on narrow screens */
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; grid-template-rows: var(--toolbar-h) 1fr auto;
+    grid-template-areas: "toolbar" "stage" "panel"; }
+  .panel { max-height: 42vh; border-left: 0; border-top: 1px solid var(--line); }
+  .system-blurb { display: none; }
+}
+
+  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23e98f86' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2352c5c9'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-left">
+      <button id="btn-gallery" class="btn btn-systems" title="Browse systems (G)">
+        <span class="logo-dot"></span>
+        <span class="brand">Morphogen</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="system-meta">
+        <span id="system-name" class="system-name">—</span>
+        <span id="system-blurb" class="system-blurb"></span>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <div class="seed-field" title="Seed — type any word or number">
+        <label for="seed-input">seed</label>
+        <input id="seed-input" type="text" spellcheck="false" autocomplete="off" />
+        <button id="btn-randomize-seed" class="btn icon-btn" title="Random seed (S)">⤮</button>
+      </div>
+      <div class="divider"></div>
+      <button id="btn-randomize-params" class="btn icon-btn" title="Randomize parameters (R)">🎲</button>
+      <button id="btn-restart" class="btn icon-btn" title="Restart (N)">↺</button>
+      <button id="btn-step" class="btn icon-btn" title="Step one frame (.)">⏭</button>
+      <button id="btn-play" class="btn icon-btn" title="Play / pause (Space)"><span class="icon">❚❚</span></button>
+      <div class="divider"></div>
+      <button id="btn-export" class="btn icon-btn" title="Export PNG (E)">⤓</button>
+      <button id="btn-record" class="btn icon-btn" title="Record WebM">⏺</button>
+      <button id="btn-share" class="btn icon-btn" title="Copy shareable link">🔗</button>
+    </div>
+  </header>
+
+  <main class="stage-wrap">
+    <canvas id="stage"></canvas>
+    <div id="toast" class="toast"></div>
+    <div class="status-bar">
+      <span id="fps" class="status-fps">— fps</span>
+      <span class="status-hint">drag the canvas · space to pause · G for systems</span>
+    </div>
+  </main>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <h2>Parameters</h2>
+      <button id="btn-panel-toggle" class="btn icon-btn" title="Collapse panel">⇥</button>
+    </div>
+    <div id="params" class="panel-body"></div>
+    <div class="panel-foot">
+      <span class="kbd-legend">
+        <kbd>Space</kbd> pause · <kbd>R</kbd> randomize · <kbd>S</kbd> seed · <kbd>E</kbd> export · <kbd>G</kbd> systems
+      </span>
+    </div>
+  </aside>
+
+  <div id="gallery" class="gallery-overlay"></div>
+  <script>
+(function () {
+
+  "use strict";
+
+  var __reg = Object.create(null);
+
+__reg["src/engine/canvas.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// canvas.js — owns the <canvas>, device-pixel-ratio sizing, and capture.
+//
+// Systems never touch sizing or export directly; they receive a logical width
+// and height (CSS pixels) plus the dpr in the SystemContext and draw in logical
+// coordinates after the engine applies the dpr transform.
+
+/**
+ * @typedef {object} StageSize
+ * @property {number} width  logical (CSS) width
+ * @property {number} height logical (CSS) height
+ * @property {number} dpr    device pixel ratio actually applied
+ */
+
+class Stage {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {object} [opts]
+   * @param {number} [opts.maxDpr=2] cap dpr to bound the pixel budget
+   */
+  constructor(canvas, { maxDpr = 2 } = {}) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    // High-quality resampling when systems blit an upscaled simulation buffer.
+    // Persists across draws; the grid systems then look smooth rather than blocky.
+    this.ctx.imageSmoothingQuality = 'high';
+    this.maxDpr = maxDpr;
+    this.width = 0;
+    this.height = 0;
+    this.dpr = 1;
+    this._recorder = null;
+    this._chunks = [];
+  }
+
+  /**
+   * Resize the backing store to match the element's box. Returns true if the
+   * size changed (systems should re-init on a true return).
+   * @returns {boolean}
+   */
+  resize() {
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = Math.min(this.maxDpr, globalThis.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
+    const pw = Math.round(w * dpr);
+    const ph = Math.round(h * dpr);
+    if (this.canvas.width === pw && this.canvas.height === ph && this.dpr === dpr) {
+      return false;
+    }
+    this.canvas.width = pw;
+    this.canvas.height = ph;
+    this.width = w;
+    this.height = h;
+    this.dpr = dpr;
+    return true;
+  }
+
+  /** Apply the dpr transform so systems can draw in logical coordinates. */
+  applyTransform() {
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
+
+  /** @returns {StageSize} */
+  size() {
+    return { width: this.width, height: this.height, dpr: this.dpr };
+  }
+
+  /**
+   * Export the current frame as a PNG and trigger a download.
+   * @param {string} filename
+   */
+  exportPng(filename = 'morphogen.png') {
+    this.canvas.toBlob((blob) => {
+      if (!blob) return;
+      downloadBlob(blob, filename);
+    }, 'image/png');
+  }
+
+  /** Whether MediaRecorder video capture is available in this browser. */
+  static canRecord() {
+    return (
+      typeof globalThis.MediaRecorder !== 'undefined' &&
+      typeof HTMLCanvasElement !== 'undefined' &&
+      typeof HTMLCanvasElement.prototype.captureStream === 'function'
+    );
+  }
+
+  /** True while a recording is in progress. */
+  get isRecording() {
+    return this._recorder != null && this._recorder.state === 'recording';
+  }
+
+  /**
+   * Begin recording the canvas to WebM. Resolves the returned promise's
+   * download when stopRecording() is called.
+   * @param {object} [opts]
+   * @param {number} [opts.fps=60]
+   * @param {string} [opts.filename]
+   */
+  startRecording({ fps = 60, filename = 'morphogen.webm' } = {}) {
+    if (!Stage.canRecord() || this.isRecording) return false;
+    const stream = this.canvas.captureStream(fps);
+    const mime = pickVideoMime();
+    this._chunks = [];
+    this._filename = filename;
+    this._recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    this._recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) this._chunks.push(e.data);
+    };
+    this._recorder.onstop = () => {
+      const blob = new Blob(this._chunks, { type: mime || 'video/webm' });
+      downloadBlob(blob, this._filename);
+      this._chunks = [];
+      this._recorder = null;
+    };
+    this._recorder.start();
+    return true;
+  }
+
+  /** Stop the active recording and trigger the download. */
+  stopRecording() {
+    if (this._recorder && this._recorder.state !== 'inactive') {
+      this._recorder.stop();
+      return true;
+    }
+    return false;
+  }
+}
+
+function pickVideoMime() {
+  if (typeof MediaRecorder === 'undefined') return '';
+  const candidates = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  return candidates.find((c) => MediaRecorder.isTypeSupported(c)) || '';
+}
+
+/** Trigger a browser download for a Blob. */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke on the next tick so the download has a chance to start.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+  __exports["downloadBlob"] = downloadBlob;
+  __exports["Stage"] = Stage;
+  return __exports;
+})();
+
+__reg["src/engine/mathx.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// mathx.js — small, dependency-free scalar and vector math used everywhere.
+//
+// Kept deliberately allocation-light: the hot-path vector helpers operate on
+// plain {x, y} objects and most return new objects (immutability) except the
+// explicitly in-place variants suffixed with `Mut`, which the heavy particle
+// systems use to avoid per-frame garbage.
+
+const TAU = Math.PI * 2;
+const PI = Math.PI;
+const HALF_PI = Math.PI / 2;
+
+/** Constrain v to [lo, hi]. */
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+/** Linear interpolation. */
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/** Inverse lerp: where does v sit between a and b? */
+const invLerp = (a, b, v) => (b === a ? 0 : (v - a) / (b - a));
+
+/** Remap v from [inMin,inMax] to [outMin,outMax]. */
+const remap = (v, inMin, inMax, outMin, outMax) =>
+  lerp(outMin, outMax, invLerp(inMin, inMax, v));
+
+/** Wrap v into [0, n) with correct behaviour for negatives. */
+const wrap = (v, n) => ((v % n) + n) % n;
+
+/** Smoothstep easing between edge0 and edge1. */
+function smoothstep(edge0, edge1, x) {
+  const t = clamp(invLerp(edge0, edge1, x), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+/** Smootherstep (Ken Perlin's quintic) — zero 1st & 2nd derivative at ends. */
+function smootherstep(edge0, edge1, x) {
+  const t = clamp(invLerp(edge0, edge1, x), 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+/** Shortest signed angular distance from a to b, in (-PI, PI]. */
+function angleDelta(a, b) {
+  let d = (b - a) % TAU;
+  if (d < -PI) d += TAU;
+  if (d > PI) d -= TAU;
+  return d;
+}
+
+/** Degrees → radians. */
+const radians = (deg) => (deg * PI) / 180;
+/** Radians → degrees. */
+const degrees = (rad) => (rad * 180) / PI;
+
+/** Euclidean distance between (x1,y1) and (x2,y2). */
+const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+/** Squared distance (cheaper when you only need comparisons). */
+const dist2 = (x1, y1, x2, y2) => {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  return dx * dx + dy * dy;
+};
+
+// ---------------------------------------------------------------------------
+// Immutable {x, y} vector helpers
+// ---------------------------------------------------------------------------
+
+const vec = (x = 0, y = 0) => ({ x, y });
+const vadd = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
+const vsub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+const vscale = (a, s) => ({ x: a.x * s, y: a.y * s });
+const vdot = (a, b) => a.x * b.x + a.y * b.y;
+const vlen = (a) => Math.hypot(a.x, a.y);
+const vlen2 = (a) => a.x * a.x + a.y * a.y;
+
+function vnorm(a) {
+  const l = Math.hypot(a.x, a.y);
+  return l === 0 ? { x: 0, y: 0 } : { x: a.x / l, y: a.y / l };
+}
+
+/** Rotate a vector by angle (radians). */
+function vrot(a, ang) {
+  const c = Math.cos(ang);
+  const s = Math.sin(ang);
+  return { x: a.x * c - a.y * s, y: a.x * s + a.y * c };
+}
+
+/** Vector from an angle and length. */
+const vfromAngle = (ang, len = 1) => ({
+  x: Math.cos(ang) * len,
+  y: Math.sin(ang) * len,
+});
+
+/** Clamp a vector's magnitude to max. */
+function vlimit(a, max) {
+  const l2 = a.x * a.x + a.y * a.y;
+  if (l2 > max * max) {
+    const l = Math.sqrt(l2);
+    return { x: (a.x / l) * max, y: (a.y / l) * max };
+  }
+  return { x: a.x, y: a.y };
+}
+
+// ---------------------------------------------------------------------------
+// In-place variants for hot loops (mutate and return `out`)
+// ---------------------------------------------------------------------------
+
+/** out += b * s. */
+function addScaledMut(out, b, s) {
+  out.x += b.x * s;
+  out.y += b.y * s;
+  return out;
+}
+
+/** Scale a vector in place. */
+function scaleMut(out, s) {
+  out.x *= s;
+  out.y *= s;
+  return out;
+}
+
+/** Limit magnitude in place. */
+function limitMut(out, max) {
+  const l2 = out.x * out.x + out.y * out.y;
+  if (l2 > max * max) {
+    const inv = max / Math.sqrt(l2);
+    out.x *= inv;
+    out.y *= inv;
+  }
+  return out;
+}
+
+/** Fast 2D fract — useful for hashing. */
+const fract = (x) => x - Math.floor(x);
+
+  __exports["smoothstep"] = smoothstep;
+  __exports["smootherstep"] = smootherstep;
+  __exports["angleDelta"] = angleDelta;
+  __exports["vnorm"] = vnorm;
+  __exports["vrot"] = vrot;
+  __exports["vlimit"] = vlimit;
+  __exports["addScaledMut"] = addScaledMut;
+  __exports["scaleMut"] = scaleMut;
+  __exports["limitMut"] = limitMut;
+  __exports["TAU"] = TAU;
+  __exports["PI"] = PI;
+  __exports["HALF_PI"] = HALF_PI;
+  __exports["clamp"] = clamp;
+  __exports["lerp"] = lerp;
+  __exports["invLerp"] = invLerp;
+  __exports["remap"] = remap;
+  __exports["wrap"] = wrap;
+  __exports["radians"] = radians;
+  __exports["degrees"] = degrees;
+  __exports["dist"] = dist;
+  __exports["dist2"] = dist2;
+  __exports["vec"] = vec;
+  __exports["vadd"] = vadd;
+  __exports["vsub"] = vsub;
+  __exports["vscale"] = vscale;
+  __exports["vdot"] = vdot;
+  __exports["vlen"] = vlen;
+  __exports["vlen2"] = vlen2;
+  __exports["vfromAngle"] = vfromAngle;
+  __exports["fract"] = fract;
+  return __exports;
+})();
+
+__reg["src/engine/color.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// color.js — color helpers and curated palettes for Morphogen.
+//
+// Systems request colors either as named palettes (resolved here) or by
+// sampling a palette ramp at t in [0,1]. Palettes are designed to read well on
+// the studio's near-black stage.
+
+const { clamp, lerp, wrap } = __reg["src/engine/mathx.js"];
+
+/** Convert HSL (h in [0,360), s,l in [0,1]) to an [r,g,b] array in [0,255]. */
+function hslToRgb(h, s, l) {
+  h = wrap(h, 360) / 360;
+  let r;
+  let g;
+  let b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+/** Parse "#rrggbb" or "#rgb" into [r,g,b]. */
+function hexToRgb(hex) {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** [r,g,b] (0..255) → "#rrggbb". */
+function rgbToHex(r, g, b) {
+  const c = (v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0');
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+
+/** Build "rgba(r,g,b,a)" string from components. */
+const rgba = (r, g, b, a = 1) =>
+  `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;
+
+/**
+ * Curated palettes. Each is an array of "#rrggbb" stops, dark→light or
+ * thematically ordered. These are sampled as smooth ramps by `sample`.
+ */
+const PALETTES = {
+  ember: ['#0b0306', '#3a0d1e', '#8c1c3a', '#e0432f', '#f6a14a', '#ffe9a8'],
+  ice: ['#04070d', '#0d2236', '#1d5a82', '#46a6c9', '#9fe3e8', '#eafcff'],
+  moss: ['#040a06', '#13311c', '#2f6b3b', '#73b05a', '#c2dd82', '#f2f7cf'],
+  dusk: ['#070512', '#241540', '#542c6e', '#a14a8c', '#e98f86', '#ffd9a0'],
+  mono: ['#000000', '#2a2a2a', '#5c5c5c', '#9a9a9a', '#d2d2d2', '#ffffff'],
+  spectral: ['#3b0f4d', '#1b4d91', '#1f9e8e', '#7fd34e', '#f7e34a', '#f24b3a'],
+  coral: ['#0a0408', '#511133', '#a32555', '#ec5f6a', '#ffae8f', '#fff0d6'],
+  cyber: ['#05010f', '#1a0a4a', '#5b1bb0', '#b53bd6', '#ff5fae', '#ffd4f0'],
+  sand: ['#100b06', '#3a2a16', '#7a5a2e', '#bd9355', '#e8cf94', '#fbf3d8'],
+  abyss: ['#01030a', '#04162e', '#0a3a63', '#1276a0', '#52c5c9', '#c8fbf2'],
+};
+
+const PALETTE_NAMES = Object.keys(PALETTES);
+
+/**
+ * Sample a palette (array of hex strings, or a name) at t in [0,1], linearly
+ * interpolating between adjacent stops. Returns [r,g,b].
+ */
+function sample(palette, t) {
+  const stops = Array.isArray(palette) ? palette : PALETTES[palette] || PALETTES.spectral;
+  const n = stops.length;
+  if (n === 1) return hexToRgb(stops[0]);
+  const x = clamp(t, 0, 1) * (n - 1);
+  const i = Math.floor(x);
+  const f = x - i;
+  if (i >= n - 1) return hexToRgb(stops[n - 1]);
+  const a = hexToRgb(stops[i]);
+  const b = hexToRgb(stops[i + 1]);
+  return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)];
+}
+
+/** Convenience: sample a palette and return an "rgb()" / "rgba()" string. */
+function sampleCss(palette, t, alpha = 1) {
+  const [r, g, b] = sample(palette, t);
+  return alpha >= 1 ? `rgb(${r | 0},${g | 0},${b | 0})` : rgba(r, g, b, alpha);
+}
+
+/**
+ * Precompute a lookup table of `steps` rgb triples for a palette — used by the
+ * pixel-heavy systems (reaction-diffusion, Lenia) to avoid per-pixel interp.
+ * Returns a Uint8ClampedArray of length steps*3.
+ */
+function ramp(palette, steps = 256) {
+  const out = new Uint8ClampedArray(steps * 3);
+  for (let i = 0; i < steps; i++) {
+    const [r, g, b] = sample(palette, i / (steps - 1));
+    out[i * 3] = r;
+    out[i * 3 + 1] = g;
+    out[i * 3 + 2] = b;
+  }
+  return out;
+}
+
+  __exports["hslToRgb"] = hslToRgb;
+  __exports["hexToRgb"] = hexToRgb;
+  __exports["rgbToHex"] = rgbToHex;
+  __exports["sample"] = sample;
+  __exports["sampleCss"] = sampleCss;
+  __exports["ramp"] = ramp;
+  __exports["rgba"] = rgba;
+  __exports["PALETTES"] = PALETTES;
+  __exports["PALETTE_NAMES"] = PALETTE_NAMES;
+  return __exports;
+})();
+
+__reg["src/engine/loop.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// loop.js — requestAnimationFrame driver with play/pause, single-step, and a
+// smoothed FPS estimate. Time is reported in seconds; dt is clamped so that a
+// backgrounded tab returning to focus does not produce a huge simulation jump.
+
+class Loop {
+  /**
+   * @param {(t:number, dt:number, frame:number) => void} onFrame
+   * @param {object} [opts]
+   * @param {number} [opts.maxDt=0.05] clamp for dt in seconds
+   */
+  constructor(onFrame, { maxDt = 0.05 } = {}) {
+    this.onFrame = onFrame;
+    this.maxDt = maxDt;
+    this.running = false;
+    this.frame = 0;
+    this.time = 0;
+    this.fps = 0;
+    this._last = 0;
+    this._raf = 0;
+    this._fpsAccum = 0;
+    this._fpsFrames = 0;
+    this._tick = this._tick.bind(this);
+  }
+
+  start() {
+    if (this.running) return;
+    this.running = true;
+    this._last = 0;
+    this._raf = requestAnimationFrame(this._tick);
+  }
+
+  stop() {
+    this.running = false;
+    if (this._raf) cancelAnimationFrame(this._raf);
+    this._raf = 0;
+  }
+
+  toggle() {
+    if (this.running) this.stop();
+    else this.start();
+    return this.running;
+  }
+
+  /** Advance exactly one frame while paused (uses a nominal 1/60 dt). */
+  stepOnce() {
+    const dt = 1 / 60;
+    this.time += dt;
+    this.frame += 1;
+    this.onFrame(this.time, dt, this.frame);
+  }
+
+  /** Reset clock and frame counter (called when a new system starts). */
+  reset() {
+    this.frame = 0;
+    this.time = 0;
+    this._last = 0;
+  }
+
+  _tick(now) {
+    if (!this.running) return;
+    const nowS = now / 1000;
+    if (this._last === 0) this._last = nowS;
+    let dt = nowS - this._last;
+    this._last = nowS;
+    if (dt > this.maxDt) dt = this.maxDt;
+    if (dt < 0) dt = 0;
+
+    this.time += dt;
+    this.frame += 1;
+
+    // Smoothed FPS over ~0.5s windows.
+    this._fpsAccum += dt;
+    this._fpsFrames += 1;
+    if (this._fpsAccum >= 0.5) {
+      this.fps = this._fpsFrames / this._fpsAccum;
+      this._fpsAccum = 0;
+      this._fpsFrames = 0;
+    }
+
+    this.onFrame(this.time, dt, this.frame);
+    this._raf = requestAnimationFrame(this._tick);
+  }
+}
+
+  __exports["Loop"] = Loop;
+  return __exports;
+})();
+
+__reg["src/engine/prng.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// prng.js — deterministic, seedable pseudo-random number generation.
+//
+// Everything visual in Morphogen must be reproducible from a single integer
+// seed so that a render can be captured in a URL and recreated exactly. We use
+// a small, fast, well-distributed generator (mulberry32) seeded through a
+// string hash so seeds can be either numbers or human-friendly words.
+
+/**
+ * Hash an arbitrary string into a 32-bit unsigned integer (xmur3).
+ * Used to turn word-seeds ("coral", "dusk") into numeric seeds.
+ * @param {string} str
+ * @returns {number} 32-bit unsigned integer
+ */
+function hashString(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^= h >>> 16) >>> 0;
+}
+
+/**
+ * mulberry32: a compact 32-bit generator with good statistical quality for
+ * visual work. Returns a function producing floats in [0, 1).
+ * @param {number} seed 32-bit integer seed
+ * @returns {() => number}
+ */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Normalize any seed input (number | string | undefined) to a 32-bit integer.
+ * @param {number|string} seed
+ * @returns {number}
+ */
+function normalizeSeed(seed) {
+  if (typeof seed === 'number' && Number.isFinite(seed)) return seed >>> 0;
+  if (typeof seed === 'string' && seed.length) {
+    const n = Number(seed);
+    if (Number.isFinite(n) && seed.trim() !== '') return n >>> 0;
+    return hashString(seed);
+  }
+  return 0;
+}
+
+/**
+ * A small, rich random source wrapping a base generator. All higher-level
+ * systems should draw randomness from an instance of this class so behaviour
+ * stays reproducible.
+ */
+class Rng {
+  /** @param {number|string} seed */
+  constructor(seed = 0) {
+    this.seed = normalizeSeed(seed);
+    this._next = mulberry32(this.seed);
+  }
+
+  /** Float in [0, 1). */
+  next() {
+    return this._next();
+  }
+
+  /** Float in [min, max). */
+  range(min, max) {
+    return min + (max - min) * this._next();
+  }
+
+  /** Integer in [min, max] inclusive. */
+  int(min, max) {
+    return Math.floor(this.range(min, max + 1));
+  }
+
+  /** True with probability p (default 0.5). */
+  chance(p = 0.5) {
+    return this._next() < p;
+  }
+
+  /** Random sign, -1 or +1. */
+  sign() {
+    return this._next() < 0.5 ? -1 : 1;
+  }
+
+  /** Pick a uniformly random element from an array. */
+  pick(arr) {
+    return arr[Math.floor(this._next() * arr.length)];
+  }
+
+  /**
+   * Standard-normal (mean 0, stddev 1) via Box–Muller. A cached second value
+   * keeps the two generated normals from going to waste.
+   */
+  gaussian() {
+    if (this._spare !== undefined) {
+      const v = this._spare;
+      this._spare = undefined;
+      return v;
+    }
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = this._next();
+    while (v === 0) v = this._next();
+    const mag = Math.sqrt(-2.0 * Math.log(u));
+    this._spare = mag * Math.sin(2.0 * Math.PI * v);
+    return mag * Math.cos(2.0 * Math.PI * v);
+  }
+
+  /** Fisher–Yates shuffle, returns a new array (does not mutate input). */
+  shuffle(arr) {
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(this._next() * (i + 1));
+      const t = out[i];
+      out[i] = out[j];
+      out[j] = t;
+    }
+    return out;
+  }
+
+  /** A unit vector at a uniformly random angle: {x, y}. */
+  unitVector() {
+    const a = this._next() * Math.PI * 2;
+    return { x: Math.cos(a), y: Math.sin(a) };
+  }
+
+  /** Reset the stream back to the original seed. */
+  reset() {
+    this._next = mulberry32(this.seed);
+    this._spare = undefined;
+    return this;
+  }
+}
+
+/**
+ * Generate a friendly random word-seed (adjective+noun) using a base generator.
+ * Used by the "randomize seed" button to produce shareable, memorable seeds.
+ * @param {() => number} rand a [0,1) source
+ * @returns {string}
+ */
+function wordSeed(rand) {
+  const adj = [
+    'coral', 'dusk', 'amber', 'frost', 'ember', 'slate', 'lush', 'pale',
+    'neon', 'murk', 'gilt', 'azure', 'rust', 'mint', 'dim', 'bright',
+    'velvet', 'static', 'liquid', 'bloom', 'drift', 'pulse', 'silt', 'glass',
+  ];
+  const noun = [
+    'reef', 'moth', 'tide', 'fern', 'comet', 'lattice', 'orchid', 'cinder',
+    'vapor', 'spire', 'delta', 'quartz', 'marrow', 'plume', 'husk', 'flux',
+    'nimbus', 'thicket', 'meadow', 'canyon', 'signal', 'fathom', 'cradle', 'echo',
+  ];
+  const a = adj[Math.floor(rand() * adj.length)];
+  const n = noun[Math.floor(rand() * noun.length)];
+  const num = Math.floor(rand() * 90 + 10);
+  return `${a}-${n}-${num}`;
+}
+
+  __exports["hashString"] = hashString;
+  __exports["mulberry32"] = mulberry32;
+  __exports["normalizeSeed"] = normalizeSeed;
+  __exports["wordSeed"] = wordSeed;
+  __exports["Rng"] = Rng;
+  return __exports;
+})();
+
+__reg["src/engine/noise.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// noise.js — seedable 2D/3D simplex noise + fractal Brownian motion (fBm).
+//
+// Based on Stefan Gustavson's public-domain simplex noise, adapted to accept a
+// seeded permutation table so that noise fields are reproducible from a seed.
+// Simplex (rather than classic Perlin) is used for its lower directional bias
+// and cheaper higher-dimensional scaling.
+
+const { Rng } = __reg["src/engine/prng.js"];
+
+const F2 = 0.5 * (Math.sqrt(3) - 1);
+const G2 = (3 - Math.sqrt(3)) / 6;
+const F3 = 1 / 3;
+const G3 = 1 / 6;
+
+const GRAD3 = new Float32Array([
+  1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
+  1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1,
+  0, 1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1,
+]);
+
+class Noise {
+  /** @param {number|string|Rng} seed */
+  constructor(seed = 0) {
+    const rng = seed instanceof Rng ? seed : new Rng(seed);
+    // Build a shuffled 0..255 permutation, then double it to avoid wrapping.
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(rng.next() * (i + 1));
+      const t = p[i];
+      p[i] = p[j];
+      p[j] = t;
+    }
+    this.perm = new Uint8Array(512);
+    this.permMod12 = new Uint8Array(512);
+    for (let i = 0; i < 512; i++) {
+      this.perm[i] = p[i & 255];
+      this.permMod12[i] = this.perm[i] % 12;
+    }
+  }
+
+  /** 2D simplex noise in roughly [-1, 1]. */
+  noise2D(xin, yin) {
+    const perm = this.perm;
+    const permMod12 = this.permMod12;
+    let n0 = 0;
+    let n1 = 0;
+    let n2 = 0;
+
+    const s = (xin + yin) * F2;
+    const i = Math.floor(xin + s);
+    const j = Math.floor(yin + s);
+    const t = (i + j) * G2;
+    const x0 = xin - (i - t);
+    const y0 = yin - (j - t);
+
+    let i1;
+    let j1;
+    if (x0 > y0) {
+      i1 = 1;
+      j1 = 0;
+    } else {
+      i1 = 0;
+      j1 = 1;
+    }
+
+    const x1 = x0 - i1 + G2;
+    const y1 = y0 - j1 + G2;
+    const x2 = x0 - 1 + 2 * G2;
+    const y2 = y0 - 1 + 2 * G2;
+
+    const ii = i & 255;
+    const jj = j & 255;
+
+    let t0 = 0.5 - x0 * x0 - y0 * y0;
+    if (t0 >= 0) {
+      const gi0 = permMod12[ii + perm[jj]] * 3;
+      t0 *= t0;
+      n0 = t0 * t0 * (GRAD3[gi0] * x0 + GRAD3[gi0 + 1] * y0);
+    }
+    let t1 = 0.5 - x1 * x1 - y1 * y1;
+    if (t1 >= 0) {
+      const gi1 = permMod12[ii + i1 + perm[jj + j1]] * 3;
+      t1 *= t1;
+      n1 = t1 * t1 * (GRAD3[gi1] * x1 + GRAD3[gi1 + 1] * y1);
+    }
+    let t2 = 0.5 - x2 * x2 - y2 * y2;
+    if (t2 >= 0) {
+      const gi2 = permMod12[ii + 1 + perm[jj + 1]] * 3;
+      t2 *= t2;
+      n2 = t2 * t2 * (GRAD3[gi2] * x2 + GRAD3[gi2 + 1] * y2);
+    }
+    return 70 * (n0 + n1 + n2);
+  }
+
+  /** 3D simplex noise in roughly [-1, 1]. Useful for animating 2D fields. */
+  noise3D(xin, yin, zin) {
+    const perm = this.perm;
+    const permMod12 = this.permMod12;
+    let n0 = 0;
+    let n1 = 0;
+    let n2 = 0;
+    let n3 = 0;
+
+    const s = (xin + yin + zin) * F3;
+    const i = Math.floor(xin + s);
+    const j = Math.floor(yin + s);
+    const k = Math.floor(zin + s);
+    const t = (i + j + k) * G3;
+    const x0 = xin - (i - t);
+    const y0 = yin - (j - t);
+    const z0 = zin - (k - t);
+
+    let i1;
+    let j1;
+    let k1;
+    let i2;
+    let j2;
+    let k2;
+    if (x0 >= y0) {
+      if (y0 >= z0) {
+        i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 1; k2 = 0;
+      } else if (x0 >= z0) {
+        i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 0; k2 = 1;
+      } else {
+        i1 = 0; j1 = 0; k1 = 1; i2 = 1; j2 = 0; k2 = 1;
+      }
+    } else if (y0 < z0) {
+      i1 = 0; j1 = 0; k1 = 1; i2 = 0; j2 = 1; k2 = 1;
+    } else if (x0 < z0) {
+      i1 = 0; j1 = 1; k1 = 0; i2 = 0; j2 = 1; k2 = 1;
+    } else {
+      i1 = 0; j1 = 1; k1 = 0; i2 = 1; j2 = 1; k2 = 0;
+    }
+
+    const x1 = x0 - i1 + G3;
+    const y1 = y0 - j1 + G3;
+    const z1 = z0 - k1 + G3;
+    const x2 = x0 - i2 + 2 * G3;
+    const y2 = y0 - j2 + 2 * G3;
+    const z2 = z0 - k2 + 2 * G3;
+    const x3 = x0 - 1 + 3 * G3;
+    const y3 = y0 - 1 + 3 * G3;
+    const z3 = z0 - 1 + 3 * G3;
+
+    const ii = i & 255;
+    const jj = j & 255;
+    const kk = k & 255;
+
+    let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
+    if (t0 >= 0) {
+      const gi0 = permMod12[ii + perm[jj + perm[kk]]] * 3;
+      t0 *= t0;
+      n0 = t0 * t0 * (GRAD3[gi0] * x0 + GRAD3[gi0 + 1] * y0 + GRAD3[gi0 + 2] * z0);
+    }
+    let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
+    if (t1 >= 0) {
+      const gi1 = permMod12[ii + i1 + perm[jj + j1 + perm[kk + k1]]] * 3;
+      t1 *= t1;
+      n1 = t1 * t1 * (GRAD3[gi1] * x1 + GRAD3[gi1 + 1] * y1 + GRAD3[gi1 + 2] * z1);
+    }
+    let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
+    if (t2 >= 0) {
+      const gi2 = permMod12[ii + i2 + perm[jj + j2 + perm[kk + k2]]] * 3;
+      t2 *= t2;
+      n2 = t2 * t2 * (GRAD3[gi2] * x2 + GRAD3[gi2 + 1] * y2 + GRAD3[gi2 + 2] * z2);
+    }
+    let t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
+    if (t3 >= 0) {
+      const gi3 = permMod12[ii + 1 + perm[jj + 1 + perm[kk + 1]]] * 3;
+      t3 *= t3;
+      n3 = t3 * t3 * (GRAD3[gi3] * x3 + GRAD3[gi3 + 1] * y3 + GRAD3[gi3 + 2] * z3);
+    }
+    return 32 * (n0 + n1 + n2 + n3);
+  }
+
+  /**
+   * Fractal Brownian motion: sum several octaves of 2D noise.
+   * @param {number} x
+   * @param {number} y
+   * @param {object} [opts]
+   * @param {number} [opts.octaves=4]
+   * @param {number} [opts.lacunarity=2] frequency multiplier per octave
+   * @param {number} [opts.gain=0.5] amplitude multiplier per octave
+   * @returns {number} value in roughly [-1, 1]
+   */
+  fbm2D(x, y, { octaves = 4, lacunarity = 2, gain = 0.5 } = {}) {
+    let amp = 0.5;
+    let freq = 1;
+    let sum = 0;
+    let norm = 0;
+    for (let o = 0; o < octaves; o++) {
+      sum += amp * this.noise2D(x * freq, y * freq);
+      norm += amp;
+      amp *= gain;
+      freq *= lacunarity;
+    }
+    return norm === 0 ? 0 : sum / norm;
+  }
+
+  /** Animated fBm using the 3rd dimension as time. */
+  fbm3D(x, y, z, { octaves = 4, lacunarity = 2, gain = 0.5 } = {}) {
+    let amp = 0.5;
+    let freq = 1;
+    let sum = 0;
+    let norm = 0;
+    for (let o = 0; o < octaves; o++) {
+      sum += amp * this.noise3D(x * freq, y * freq, z * freq);
+      norm += amp;
+      amp *= gain;
+      freq *= lacunarity;
+    }
+    return norm === 0 ? 0 : sum / norm;
+  }
+}
+
+  __exports["Noise"] = Noise;
+  return __exports;
+})();
+
+__reg["src/engine/params.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// params.js — render a system's declarative param spec into DOM controls and
+// report changes back through a single callback. No framework; just elements.
+//
+// Supported control types: range, int, toggle, select, color.
+// A ParamSpec entry: { key, label, type, default, min?, max?, step?, options?, hint? }
+
+const { clamp } = __reg["src/engine/mathx.js"];
+
+class ParamPanel {
+  /**
+   * @param {HTMLElement} root container the controls are mounted into
+   * @param {(key:string, value:any, all:object) => void} onChange
+   */
+  constructor(root, onChange) {
+    this.root = root;
+    this.onChange = onChange;
+    this.spec = [];
+    this.values = {};
+    this._inputs = new Map(); // key -> { el, readout, set(v) }
+  }
+
+  /**
+   * Rebuild the panel for a new spec and initial values.
+   * @param {Array<object>} spec
+   * @param {object} values
+   */
+  build(spec, values) {
+    this.spec = spec;
+    this.values = { ...values };
+    this.root.textContent = '';
+    this._inputs.clear();
+
+    for (const p of spec) {
+      const row = document.createElement('div');
+      row.className = 'param-row';
+      row.dataset.type = p.type;
+
+      const label = document.createElement('label');
+      label.className = 'param-label';
+      label.textContent = p.label || p.key;
+      label.htmlFor = `param-${p.key}`;
+
+      const control = this._buildControl(p);
+      row.appendChild(label);
+      row.appendChild(control.wrap);
+      if (p.hint) {
+        const hint = document.createElement('div');
+        hint.className = 'param-hint';
+        hint.textContent = p.hint;
+        row.appendChild(hint);
+      }
+      this.root.appendChild(row);
+      this._inputs.set(p.key, control);
+    }
+  }
+
+  _emit(key, value) {
+    this.values = { ...this.values, [key]: value };
+    this.onChange(key, value, this.values);
+  }
+
+  _buildControl(p) {
+    const wrap = document.createElement('div');
+    wrap.className = 'param-control';
+    const id = `param-${p.key}`;
+    const initial = this.values[p.key] ?? p.default;
+
+    if (p.type === 'range' || p.type === 'int') {
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.id = id;
+      input.min = String(p.min ?? 0);
+      input.max = String(p.max ?? 1);
+      input.step = String(p.step ?? (p.type === 'int' ? 1 : 0.001));
+      input.value = String(initial);
+      const readout = document.createElement('span');
+      readout.className = 'param-value';
+      const fmt = (v) => (p.type === 'int' ? String(v | 0) : trimNum(v));
+      readout.textContent = fmt(initial);
+      input.addEventListener('input', () => {
+        let v = Number(input.value);
+        if (p.type === 'int') v = Math.round(v);
+        readout.textContent = fmt(v);
+        this._emit(p.key, v);
+      });
+      wrap.appendChild(input);
+      wrap.appendChild(readout);
+      return {
+        wrap,
+        set: (v) => {
+          input.value = String(v);
+          readout.textContent = fmt(v);
+        },
+      };
+    }
+
+    if (p.type === 'toggle') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = id;
+      btn.className = 'param-toggle';
+      const render = (v) => {
+        btn.setAttribute('aria-pressed', v ? 'true' : 'false');
+        btn.textContent = v ? 'On' : 'Off';
+        btn.classList.toggle('on', !!v);
+      };
+      render(initial);
+      btn.addEventListener('click', () => {
+        const v = !(this.values[p.key] ?? p.default);
+        render(v);
+        this._emit(p.key, v);
+      });
+      wrap.appendChild(btn);
+      return { wrap, set: render };
+    }
+
+    if (p.type === 'select') {
+      const sel = document.createElement('select');
+      sel.id = id;
+      sel.className = 'param-select';
+      for (const opt of p.options || []) {
+        const o = document.createElement('option');
+        o.value = String(opt.value);
+        o.textContent = opt.label ?? String(opt.value);
+        sel.appendChild(o);
+      }
+      sel.value = String(initial);
+      sel.addEventListener('change', () => this._emit(p.key, sel.value));
+      wrap.appendChild(sel);
+      return { wrap, set: (v) => { sel.value = String(v); } };
+    }
+
+    if (p.type === 'color') {
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.id = id;
+      input.className = 'param-color';
+      input.value = String(initial);
+      input.addEventListener('input', () => this._emit(p.key, input.value));
+      wrap.appendChild(input);
+      return { wrap, set: (v) => { input.value = String(v); } };
+    }
+
+    // Unknown type: render a disabled placeholder so the panel never breaks.
+    const span = document.createElement('span');
+    span.textContent = String(initial);
+    wrap.appendChild(span);
+    return { wrap, set: () => {} };
+  }
+
+  /**
+   * Sync all controls to a values object (used after randomize / URL load).
+   * Does NOT emit change events.
+   */
+  setValues(values) {
+    this.values = { ...this.values, ...values };
+    for (const [key, control] of this._inputs) {
+      if (key in this.values) control.set(this.values[key]);
+    }
+  }
+
+  /** Current values snapshot. */
+  getValues() {
+    return { ...this.values };
+  }
+}
+
+/** Clamp a numeric value against a param spec's min/max if present. */
+function clampToSpec(p, v) {
+  if (typeof v !== 'number') return v;
+  const lo = p.min ?? -Infinity;
+  const hi = p.max ?? Infinity;
+  return clamp(v, lo, hi);
+}
+
+/** Build a default-values object from a spec. */
+function defaultsOf(spec) {
+  const out = {};
+  for (const p of spec) out[p.key] = p.default;
+  return out;
+}
+
+function trimNum(v) {
+  const n = Math.round(v * 1000) / 1000;
+  return String(n);
+}
+
+  __exports["clampToSpec"] = clampToSpec;
+  __exports["defaultsOf"] = defaultsOf;
+  __exports["ParamPanel"] = ParamPanel;
+  return __exports;
+})();
+
+__reg["src/engine/urlstate.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// urlstate.js — serialize studio state to/from the URL hash.
+//
+// State shape: { sys: string, seed: string, params: Record<string, number|boolean|string> }
+//
+// We keep the hash human-readable and tweakable, e.g.
+//   #sys=flowfield&seed=coral-reef-42&p=count~2400;speed~1.2;wrap~1
+// Param values are encoded with a tiny scheme so booleans and numbers survive a
+// round-trip without ambiguity.
+
+/** Encode a single param value to a compact string. */
+function encodeValue(v) {
+  if (typeof v === 'boolean') return v ? '1' : '0';
+  if (typeof v === 'number') {
+    // Trim to a sane precision to keep URLs short.
+    return String(Math.round(v * 1e4) / 1e4);
+  }
+  return 's:' + encodeURIComponent(String(v));
+}
+
+/** Decode a param value given the *type hint* from the system's param spec. */
+function decodeValue(raw, type) {
+  if (raw.startsWith('s:')) return decodeURIComponent(raw.slice(2));
+  if (type === 'toggle') return raw === '1' || raw === 'true';
+  if (type === 'select') return decodeURIComponent(raw);
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : raw;
+}
+
+/**
+ * Encode state to a hash string (without the leading '#').
+ * @param {{sys:string, seed:(string|number), params:object}} state
+ */
+function encodeState(state) {
+  const parts = [];
+  if (state.sys) parts.push('sys=' + encodeURIComponent(state.sys));
+  if (state.seed !== undefined && state.seed !== null) {
+    parts.push('seed=' + encodeURIComponent(String(state.seed)));
+  }
+  if (state.params && Object.keys(state.params).length) {
+    const p = Object.entries(state.params)
+      .map(([k, v]) => `${encodeURIComponent(k)}~${encodeValue(v)}`)
+      .join(';');
+    parts.push('p=' + p);
+  }
+  return parts.join('&');
+}
+
+/**
+ * Decode a hash string into a partial state. Param *values* are returned as raw
+ * strings keyed by name; the caller resolves types against the active system's
+ * param spec via `coerceParams`.
+ * @param {string} hash hash with or without leading '#'
+ * @returns {{sys?:string, seed?:string, rawParams:Record<string,string>}}
+ */
+function decodeState(hash) {
+  const h = hash.replace(/^#/, '');
+  const out = { rawParams: {} };
+  if (!h) return out;
+  for (const seg of h.split('&')) {
+    const eq = seg.indexOf('=');
+    if (eq < 0) continue;
+    const key = seg.slice(0, eq);
+    const val = seg.slice(eq + 1);
+    if (key === 'sys') out.sys = decodeURIComponent(val);
+    else if (key === 'seed') out.seed = decodeURIComponent(val);
+    else if (key === 'p') {
+      for (const pair of val.split(';')) {
+        if (!pair) continue;
+        const t = pair.indexOf('~');
+        if (t < 0) continue;
+        out.rawParams[decodeURIComponent(pair.slice(0, t))] = pair.slice(t + 1);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Coerce raw param strings against a param spec list, filling defaults for any
+ * missing keys and ignoring unknown ones.
+ * @param {Array<{key:string,type:string,default:any}>} spec
+ * @param {Record<string,string>} rawParams
+ * @returns {object} fully-typed params
+ */
+function coerceParams(spec, rawParams) {
+  const out = {};
+  for (const p of spec) {
+    if (Object.prototype.hasOwnProperty.call(rawParams, p.key)) {
+      out[p.key] = decodeValue(rawParams[p.key], p.type);
+    } else {
+      out[p.key] = p.default;
+    }
+  }
+  return out;
+}
+
+/**
+ * Build the full shareable URL for a state, using the current origin+path.
+ * @param {object} state
+ * @param {Location|{origin:string,pathname:string}} [loc]
+ */
+function shareableUrl(state, loc = globalThis.location) {
+  const base = `${loc.origin}${loc.pathname}`;
+  return `${base}#${encodeState(state)}`;
+}
+
+/**
+ * Write state to location.hash without adding a history entry (replaceState).
+ * No-ops outside a browser.
+ */
+function writeHash(state) {
+  if (typeof globalThis.history === 'undefined' || !globalThis.location) return;
+  const hash = '#' + encodeState(state);
+  try {
+    globalThis.history.replaceState(null, '', hash);
+  } catch {
+    globalThis.location.hash = hash;
+  }
+}
+
+  __exports["encodeState"] = encodeState;
+  __exports["decodeState"] = decodeState;
+  __exports["coerceParams"] = coerceParams;
+  __exports["shareableUrl"] = shareableUrl;
+  __exports["writeHash"] = writeHash;
+  return __exports;
+})();
+
+__reg["src/engine/engine.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// engine.js — the heart of Morphogen. Owns the active system's lifecycle and
+// builds the SystemContext handed to every system each frame.
+//
+// ┌──────────────────────────────────────────────────────────────────────┐
+// │ System interface contract (implemented by every file in src/systems): │
+// │                                                                        │
+// │   export default function create() => System                          │
+// │                                                                        │
+// │   System = {                                                           │
+// │     meta:   { id, name, blurb, category },                            │
+// │     params: ParamSpec[],            // declarative controls            │
+// │     init(c: SystemContext): void,   // allocate buffers, seed state    │
+// │     step(c: SystemContext): void,   // advance + draw one frame        │
+// │     onPointer?(c, type): void,      // 'down' | 'move' | 'up'          │
+// │     dispose?(): void,                                                  │
+// │   }                                                                    │
+// │                                                                        │
+// │   ParamSpec = { key, label, type, default, min?, max?, step?,         │
+// │                 options?, hint?, structural? }                         │
+// │     type ∈ 'range' | 'int' | 'toggle' | 'select' | 'color'           │
+// │     structural:true  → changing it re-runs init()                      │
+// │                                                                        │
+// │   SystemContext (c) = {                                                │
+// │     ctx,                       // 2D context, dpr transform applied    │
+// │     width, height,             // logical (CSS) pixels                 │
+// │     pixelWidth, pixelHeight,   // device pixels (for ImageData work)   │
+// │     dpr,                                                               │
+// │     rng:   Rng,                // seeded; .next() .range() .int() …     │
+// │     noise: Noise,              // seeded simplex/fbm                    │
+// │     seed:  number,                                                     │
+// │     time, dt, frame,                                                   │
+// │     params,                    // current values, read live each step  │
+// │     pointer: { x, y, px, py, down },                                   │
+// │     clear(alpha?), background, // fill helper + bg color string        │
+// │   }                                                                    │
+// └──────────────────────────────────────────────────────────────────────┘
+
+const { Stage } = __reg["src/engine/canvas.js"];
+const { Loop } = __reg["src/engine/loop.js"];
+const { Rng, normalizeSeed, wordSeed, mulberry32 } = __reg["src/engine/prng.js"];
+const { Noise } = __reg["src/engine/noise.js"];
+const { ParamPanel, defaultsOf } = __reg["src/engine/params.js"];
+const { decodeState, coerceParams, writeHash, shareableUrl } = __reg["src/engine/urlstate.js"];
+
+const BACKGROUND = '#07080c';
+
+class Engine {
+  /**
+   * @param {object} deps
+   * @param {HTMLCanvasElement} deps.canvas
+   * @param {HTMLElement} deps.paramRoot mount point for the control panel
+   * @param {Registry} deps.registry
+   */
+  constructor({ canvas, paramRoot, registry }) {
+    this.stage = new Stage(canvas);
+    this.registry = registry;
+    this.panel = new ParamPanel(paramRoot, (key, value) =>
+      this._onParamChange(key, value),
+    );
+    this.loop = new Loop((t, dt, frame) => this._frame(t, dt, frame));
+
+    this.system = null; // active System instance
+    this.systemId = null;
+    this.seed = 0;
+    this.params = {};
+    this._needsInit = false;
+    this._listeners = { state: [], fps: [] };
+
+    // Stable context object, mutated in place each frame.
+    this.context = {
+      ctx: this.stage.ctx,
+      width: 0,
+      height: 0,
+      pixelWidth: 0,
+      pixelHeight: 0,
+      dpr: 1,
+      rng: new Rng(0),
+      noise: new Noise(0),
+      seed: 0,
+      time: 0,
+      dt: 0,
+      frame: 0,
+      params: {},
+      pointer: { x: 0, y: 0, px: 0, py: 0, down: false },
+      background: BACKGROUND,
+      clear: (alpha = 1) => this._clear(alpha),
+    };
+
+    this._installPointer(canvas);
+    this._installResize(canvas);
+  }
+
+  // -- event subscription ---------------------------------------------------
+
+  on(evt, fn) {
+    (this._listeners[evt] ||= []).push(fn);
+    return () => {
+      this._listeners[evt] = this._listeners[evt].filter((f) => f !== fn);
+    };
+  }
+
+  _emit(evt, payload) {
+    for (const fn of this._listeners[evt] || []) fn(payload);
+  }
+
+  // -- boot -----------------------------------------------------------------
+
+  /** Start the studio, honoring any state encoded in the URL hash. */
+  boot() {
+    const fromUrl = decodeState(globalThis.location?.hash || '');
+    const id =
+      (fromUrl.sys && this.registry.has(fromUrl.sys) && fromUrl.sys) ||
+      this.registry.firstId();
+    const seed = fromUrl.seed ?? wordSeed(mulberry32(0x9e3779b9));
+    this.stage.resize();
+    this._loadSystem(id, { seed, rawParams: fromUrl.rawParams });
+    this.loop.start();
+  }
+
+  // -- system lifecycle -----------------------------------------------------
+
+  /**
+   * Switch to a system, optionally seeding initial params (raw strings from a
+   * URL) and a seed. Falls back to spec defaults for any unspecified params.
+   */
+  _loadSystem(id, { seed, rawParams } = {}) {
+    const factory = this.registry.get(id);
+    if (!factory) return;
+    if (this.system?.dispose) {
+      try {
+        this.system.dispose();
+      } catch (e) {
+        console.warn('system dispose failed', e);
+      }
+    }
+    this.system = factory();
+    this.systemId = id;
+    const spec = this.system.params || [];
+
+    this.params = rawParams
+      ? coerceParams(spec, rawParams)
+      : defaultsOf(spec);
+    if (seed !== undefined) this.seed = normalizeSeed(seed);
+    this._rawSeed = seed ?? this.seed;
+
+    this.panel.build(spec, this.params);
+    this._reinit();
+    this._syncUrl();
+    this._emit('state', this.snapshot());
+  }
+
+  /** Re-run the active system's init() with current seed/params/size. */
+  _reinit() {
+    if (!this.system) return;
+    const changed = this.stage.resize();
+    void changed;
+    const c = this.context;
+    c.dpr = this.stage.dpr;
+    c.width = this.stage.width;
+    c.height = this.stage.height;
+    c.pixelWidth = this.stage.canvas.width;
+    c.pixelHeight = this.stage.canvas.height;
+    c.rng = new Rng(this.seed);
+    c.noise = new Noise(this.seed);
+    c.seed = this.seed;
+    c.params = this.params;
+    c.time = 0;
+    c.dt = 0;
+    c.frame = 0;
+
+    this.loop.reset();
+    this.stage.applyTransform();
+    this._paintBackground();
+    try {
+      this.system.init(c);
+    } catch (e) {
+      console.error(`init() failed for "${this.systemId}"`, e);
+    }
+    this._needsInit = false;
+  }
+
+  _frame(t, dt, frame) {
+    if (!this.system) return;
+    if (this._needsInit) this._reinit();
+    const c = this.context;
+    c.time = t;
+    c.dt = dt;
+    c.frame = frame;
+    c.params = this.params;
+    this.stage.applyTransform();
+    try {
+      this.system.step(c);
+    } catch (e) {
+      console.error(`step() failed for "${this.systemId}"`, e);
+      this.loop.stop();
+    }
+    if (frame % 30 === 0) this._emit('fps', this.loop.fps);
+  }
+
+  // -- public controls ------------------------------------------------------
+
+  setSystem(id) {
+    if (id === this.systemId) return;
+    this._loadSystem(id, { seed: this._rawSeed });
+  }
+
+  setSeed(seed) {
+    this.seed = normalizeSeed(seed);
+    this._rawSeed = seed;
+    this._reinit();
+    this._syncUrl();
+    this._emit('state', this.snapshot());
+  }
+
+  randomizeSeed() {
+    const word = wordSeed(this.context.rng.next.bind(this.context.rng));
+    this.setSeed(word);
+    return word;
+  }
+
+  /** Randomize all non-fixed params within their declared ranges. */
+  randomizeParams() {
+    const spec = this.system?.params || [];
+    const rng = new Rng((this.seed ^ 0x5bf03635) >>> 0);
+    const next = {};
+    for (const p of spec) {
+      if (p.fixed) {
+        next[p.key] = this.params[p.key];
+        continue;
+      }
+      next[p.key] = randomValueFor(p, rng);
+    }
+    this.params = next;
+    this.panel.setValues(next);
+    this._reinit();
+    this._syncUrl();
+    this._emit('state', this.snapshot());
+  }
+
+  restart() {
+    this._reinit();
+  }
+
+  togglePlay() {
+    return this.loop.toggle();
+  }
+
+  stepOnce() {
+    if (!this.loop.running) this.loop.stepOnce();
+  }
+
+  exportPng() {
+    const name = `morphogen-${this.systemId}-${this._rawSeed}.png`;
+    this.stage.exportPng(name);
+  }
+
+  toggleRecording() {
+    if (this.stage.isRecording) {
+      this.stage.stopRecording();
+      return false;
+    }
+    return this.stage.startRecording({
+      filename: `morphogen-${this.systemId}-${this._rawSeed}.webm`,
+    });
+  }
+
+  shareUrl() {
+    return shareableUrl(this._stateForUrl());
+  }
+
+  snapshot() {
+    return {
+      systemId: this.systemId,
+      meta: this.system?.meta,
+      seed: this._rawSeed,
+      params: { ...this.params },
+      running: this.loop.running,
+    };
+  }
+
+  // -- internals ------------------------------------------------------------
+
+  _onParamChange(key, value) {
+    this.params = { ...this.params, [key]: value };
+    const spec = (this.system?.params || []).find((p) => p.key === key);
+    if (spec?.structural) {
+      this._needsInit = true;
+    }
+    this._syncUrl();
+  }
+
+  _stateForUrl() {
+    return { sys: this.systemId, seed: this._rawSeed, params: this.params };
+  }
+
+  _syncUrl() {
+    writeHash(this._stateForUrl());
+  }
+
+  _paintBackground() {
+    const { ctx } = this.stage;
+    ctx.save();
+    ctx.fillStyle = BACKGROUND;
+    ctx.fillRect(0, 0, this.stage.width, this.stage.height);
+    ctx.restore();
+  }
+
+  _clear(alpha) {
+    const { ctx } = this.stage;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = BACKGROUND;
+    ctx.fillRect(0, 0, this.stage.width, this.stage.height);
+    ctx.restore();
+  }
+
+  _installPointer(canvas) {
+    const toLogical = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return {
+        x: ((e.clientX - r.left) / r.width) * this.stage.width,
+        y: ((e.clientY - r.top) / r.height) * this.stage.height,
+      };
+    };
+    const update = (e, type) => {
+      const p = toLogical(e);
+      const ptr = this.context.pointer;
+      ptr.px = ptr.x;
+      ptr.py = ptr.y;
+      ptr.x = p.x;
+      ptr.y = p.y;
+      if (type === 'down') ptr.down = true;
+      if (type === 'up') ptr.down = false;
+      if (this.system?.onPointer) {
+        try {
+          this.system.onPointer(this.context, type);
+        } catch (e2) {
+          console.warn('onPointer failed', e2);
+        }
+      }
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture?.(e.pointerId);
+      update(e, 'down');
+    });
+    canvas.addEventListener('pointermove', (e) => update(e, 'move'));
+    canvas.addEventListener('pointerup', (e) => update(e, 'up'));
+    canvas.addEventListener('pointerleave', (e) => update(e, 'up'));
+  }
+
+  _installResize(canvas) {
+    if (typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (this.stage.resize()) this._needsInit = true;
+      });
+    });
+    ro.observe(canvas);
+    this._ro = ro;
+  }
+}
+
+/** Choose a random value appropriate to a param's type/range. */
+function randomValueFor(p, rng) {
+  switch (p.type) {
+    case 'range':
+      return Math.round(rng.range(p.min ?? 0, p.max ?? 1) * 1e4) / 1e4;
+    case 'int':
+      return rng.int(p.min ?? 0, p.max ?? 10);
+    case 'toggle':
+      return rng.chance();
+    case 'select':
+      return rng.pick((p.options || [{ value: p.default }]).map((o) => o.value));
+    case 'color': {
+      const h = Math.floor(rng.next() * 360);
+      const s = 60 + Math.floor(rng.next() * 40);
+      const l = 40 + Math.floor(rng.next() * 30);
+      // crude HSL→hex for a pleasant random color
+      const a = (s * Math.min(l, 100 - l)) / 100 / 100;
+      const f = (n) => {
+        const k = (n + h / 30) % 12;
+        const col = l / 100 - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * col)
+          .toString(16)
+          .padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+    default:
+      return p.default;
+  }
+}
+
+  __exports["Engine"] = Engine;
+  return __exports;
+})();
+
+__reg["src/engine/registry.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// registry.js — a tiny ordered registry mapping system id → factory + meta.
+//
+// Systems are registered in src/main.js. The registry preserves insertion
+// order so the gallery and switcher present systems in a curated sequence.
+
+class Registry {
+  constructor() {
+    this._order = [];
+    this._factories = new Map();
+    this._meta = new Map();
+  }
+
+  /**
+   * Register a system factory.
+   * @param {() => object} factory returns a System instance
+   * @param {object} [metaOverride] optional meta if the factory is expensive to
+   *        call just to read meta; otherwise meta is read by instantiating once.
+   */
+  register(factory, metaOverride) {
+    let meta = metaOverride;
+    if (!meta) {
+      const probe = factory();
+      meta = probe.meta;
+      if (probe.dispose) {
+        try {
+          probe.dispose();
+        } catch {
+          /* ignore probe dispose errors */
+        }
+      }
+    }
+    if (!meta || !meta.id) {
+      throw new Error('System is missing meta.id');
+    }
+    if (this._factories.has(meta.id)) {
+      throw new Error(`Duplicate system id: ${meta.id}`);
+    }
+    this._order.push(meta.id);
+    this._factories.set(meta.id, factory);
+    this._meta.set(meta.id, meta);
+    return this;
+  }
+
+  has(id) {
+    return this._factories.has(id);
+  }
+
+  get(id) {
+    return this._factories.get(id);
+  }
+
+  meta(id) {
+    return this._meta.get(id);
+  }
+
+  firstId() {
+    return this._order[0];
+  }
+
+  /** Ordered list of { id, name, blurb, category }. */
+  list() {
+    return this._order.map((id) => this._meta.get(id));
+  }
+
+  get size() {
+    return this._order.length;
+  }
+}
+
+  __exports["Registry"] = Registry;
+  return __exports;
+})();
+
+__reg["src/ui/gallery.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// gallery.js — the system switcher. Renders a grid of cards (one per system),
+// grouped by category, and reports selection. Opens as an overlay panel.
+
+class Gallery {
+  /**
+   * @param {HTMLElement} root overlay container
+   * @param {Array<{id,name,blurb,category}>} systems
+   * @param {(id:string) => void} onSelect
+   */
+  constructor(root, systems, onSelect) {
+    this.root = root;
+    this.systems = systems;
+    this.onSelect = onSelect;
+    this.activeId = null;
+    this._cards = new Map();
+    this._build();
+  }
+
+  _build() {
+    this.root.textContent = '';
+    const panel = document.createElement('div');
+    panel.className = 'gallery-panel';
+
+    const header = document.createElement('div');
+    header.className = 'gallery-header';
+    header.innerHTML =
+      '<h2>Systems</h2><button class="gallery-close" aria-label="Close">✕</button>';
+    header.querySelector('.gallery-close').addEventListener('click', () =>
+      this.close(),
+    );
+    panel.appendChild(header);
+
+    // Group by category, preserving first-seen order.
+    const groups = new Map();
+    for (const s of this.systems) {
+      const cat = s.category || 'Other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat).push(s);
+    }
+
+    for (const [cat, items] of groups) {
+      const section = document.createElement('section');
+      section.className = 'gallery-group';
+      const h = document.createElement('h3');
+      h.textContent = cat;
+      section.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'gallery-grid';
+      for (const s of items) {
+        grid.appendChild(this._card(s));
+      }
+      section.appendChild(grid);
+      panel.appendChild(section);
+    }
+
+    this.root.appendChild(panel);
+
+    // Click on the backdrop (outside the panel) closes the gallery.
+    this.root.addEventListener('click', (e) => {
+      if (e.target === this.root) this.close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isOpen) this.close();
+    });
+  }
+
+  _card(s) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'gallery-card';
+    card.dataset.id = s.id;
+    card.innerHTML = `
+      <span class="gallery-card-name">${escapeHtml(s.name)}</span>
+      <span class="gallery-card-blurb">${escapeHtml(s.blurb || '')}</span>
+    `;
+    card.addEventListener('click', () => {
+      this.onSelect(s.id);
+      this.close();
+    });
+    this._cards.set(s.id, card);
+    return card;
+  }
+
+  setActive(id) {
+    this.activeId = id;
+    for (const [cid, card] of this._cards) {
+      card.classList.toggle('active', cid === id);
+    }
+  }
+
+  get isOpen() {
+    return this.root.classList.contains('open');
+  }
+
+  open() {
+    this.root.classList.add('open');
+  }
+
+  close() {
+    this.root.classList.remove('open');
+  }
+
+  toggle() {
+    this.root.classList.toggle('open');
+  }
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+  __exports["Gallery"] = Gallery;
+  return __exports;
+})();
+
+__reg["src/systems/flowfield.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// flowfield.js — particles advected through an animated simplex-noise vector
+// field, leaving fading trails. This file is also the *reference* system: it
+// demonstrates the full interface contract (meta, params, init, step,
+// onPointer) and the house style other systems follow.
+
+const { sampleCss } = __reg["src/engine/color.js"];
+const { TAU } = __reg["src/engine/mathx.js"];
+
+function create() {
+  // Per-instance state. Allocated in init() once sizes are known.
+  let px = null; // Float32Array x
+  let py = null; // Float32Array y
+  let life = null; // Float32Array remaining life (frames) before respawn
+  let hue = null; // Float32Array per-particle palette offset [0,1)
+  let count = 0;
+
+  function spawn(c, i) {
+    px[i] = c.rng.next() * c.width;
+    py[i] = c.rng.next() * c.height;
+    life[i] = c.rng.range(40, 220);
+    hue[i] = c.rng.next();
+  }
+
+  return {
+    meta: {
+      id: 'flowfield',
+      name: 'Flow Field',
+      blurb: 'Particles drifting through an animated noise field.',
+      category: 'Fields',
+    },
+
+    params: [
+      { key: 'count', label: 'Particles', type: 'int', min: 200, max: 6000, step: 100, default: 2600, structural: true },
+      { key: 'scale', label: 'Field scale', type: 'range', min: 0.0005, max: 0.006, step: 0.0001, default: 0.0018 },
+      { key: 'speed', label: 'Speed', type: 'range', min: 0.1, max: 4, step: 0.05, default: 1.3 },
+      { key: 'drift', label: 'Time drift', type: 'range', min: 0, max: 0.4, step: 0.005, default: 0.08, hint: 'How fast the field itself evolves' },
+      { key: 'octaves', label: 'Detail', type: 'int', min: 1, max: 5, step: 1, default: 2 },
+      { key: 'curl', label: 'Curl', type: 'range', min: 0, max: 1.5, step: 0.01, default: 0.6, hint: 'Rotate field vectors toward perpendicular flow' },
+      { key: 'fade', label: 'Trail length', type: 'range', min: 0.004, max: 0.2, step: 0.002, default: 0.03, hint: 'Lower = longer trails' },
+      { key: 'lineWidth', label: 'Line width', type: 'range', min: 0.4, max: 3, step: 0.1, default: 0.9 },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'abyss', options: [
+        { value: 'abyss', label: 'Abyss' }, { value: 'ember', label: 'Ember' },
+        { value: 'ice', label: 'Ice' }, { value: 'spectral', label: 'Spectral' },
+        { value: 'moss', label: 'Moss' }, { value: 'cyber', label: 'Cyber' },
+        { value: 'coral', label: 'Coral' }, { value: 'sand', label: 'Sand' },
+      ] },
+      { key: 'colorBy', label: 'Color by', type: 'select', default: 'angle', options: [
+        { value: 'angle', label: 'Flow angle' }, { value: 'speed', label: 'Speed' },
+        { value: 'particle', label: 'Particle' },
+      ] },
+    ],
+
+    init(c) {
+      count = c.params.count | 0;
+      px = new Float32Array(count);
+      py = new Float32Array(count);
+      life = new Float32Array(count);
+      hue = new Float32Array(count);
+      for (let i = 0; i < count; i++) spawn(c, i);
+      // Start from a clean dark frame.
+      c.clear(1);
+    },
+
+    step(c) {
+      const p = c.params;
+      const { ctx, noise } = c;
+      const w = c.width;
+      const h = c.height;
+      const z = c.time * p.drift;
+      const sc = p.scale;
+      const sp = p.speed;
+      const curl = p.curl;
+      const oct = p.octaves | 0;
+      const fbmOpts = { octaves: oct }; // hoisted out of the loop — no per-particle alloc
+
+      // Fade previous frame for trails.
+      c.clear(p.fade);
+
+      ctx.lineWidth = p.lineWidth;
+      ctx.lineCap = 'round';
+
+      for (let i = 0; i < count; i++) {
+        const x0 = px[i];
+        const y0 = py[i];
+        // Field angle from animated fBm; curl rotates toward perpendicular.
+        const n = noise.fbm3D(x0 * sc, y0 * sc, z, fbmOpts);
+        const angle = n * TAU * 1.5 + curl * Math.PI * 0.5;
+        const vx = Math.cos(angle) * sp;
+        const vy = Math.sin(angle) * sp;
+        const x1 = x0 + vx;
+        const y1 = y0 + vy;
+
+        let t;
+        if (p.colorBy === 'angle') t = (n + 1) * 0.5;
+        else if (p.colorBy === 'speed') t = Math.min(1, Math.hypot(vx, vy) / sp);
+        else t = hue[i];
+
+        ctx.strokeStyle = sampleCss(p.palette, t, 0.85);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+
+        px[i] = x1;
+        py[i] = y1;
+        life[i] -= 1;
+
+        // Respawn when off-screen or aged out.
+        if (life[i] <= 0 || x1 < -2 || x1 > w + 2 || y1 < -2 || y1 > h + 2) {
+          spawn(c, i);
+        }
+      }
+    },
+
+    onPointer(c, type) {
+      // Dragging injects a swirl: nudge nearby particles outward from pointer.
+      if (!c.pointer.down && type !== 'down') return;
+      const { x, y } = c.pointer;
+      for (let i = 0; i < count; i++) {
+        const dx = px[i] - x;
+        const dy = py[i] - y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 9000) {
+          const inv = 1 / Math.sqrt(d2 + 1);
+          px[i] += dx * inv * 6;
+          py[i] += dy * inv * 6;
+        }
+      }
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/reactiondiffusion.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// reactiondiffusion.js — Gray-Scott reaction-diffusion.
+//
+// Two virtual chemicals U and V diffuse and react on a fixed toroidal grid.
+// U feeds, V is killed, and the U + 2V -> 3V autocatalytic reaction lets V
+// self-organise into coral mazes, mitosing spots, and pulsing waves depending
+// on the feed/kill balance. The sim runs at a fixed resolution independent of
+// canvas size and is blitted to the stage via an offscreen ImageData.
+
+const { ramp } = __reg["src/engine/color.js"];
+const { clamp } = __reg["src/engine/mathx.js"];
+
+// Grid resolution on the long edge. Higher = crisper coral filaments when the
+// buffer is blitted across the stage; the Gray-Scott update stays real-time.
+const MAXDIM = 300;
+const DU = 1.0; // U diffusion rate
+const DV = 0.5; // V diffusion rate
+
+function create() {
+  let SIMW = 0, SIMH = 0, N = 0;
+  let u = null, v = null, u2 = null, v2 = null;
+  let off = null, offCtx = null, img = null, data = null;
+  let lut = null, lutPalette = null; // precomputed palette ramp + its name
+
+  // Seed ~12 square patches of V (U dips to 0.5) so growth has nuclei to spread from.
+  function seed(c) {
+    for (let i = 0; i < N; i++) { u[i] = 1; v[i] = 0; }
+    const patches = 12;
+    for (let p = 0; p < patches; p++) {
+      const cx = c.rng.int(0, SIMW - 1);
+      const cy = c.rng.int(0, SIMH - 1);
+      const r = c.rng.int(3, 7);
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const x = ((cx + dx) % SIMW + SIMW) % SIMW;
+          const y = ((cy + dy) % SIMH + SIMH) % SIMH;
+          const idx = y * SIMW + x;
+          v[idx] = 1; u[idx] = 0.5;
+        }
+      }
+    }
+  }
+
+  // Paint V into a small circular brush at sim cell (cx,cy) — drives interaction.
+  function paint(cx, cy) {
+    const r = 6;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy > r * r) continue;
+        const x = ((cx + dx) % SIMW + SIMW) % SIMW;
+        const y = ((cy + dy) % SIMH + SIMH) % SIMH;
+        const idx = y * SIMW + x;
+        v[idx] = 1; u[idx] = 0.2;
+      }
+    }
+  }
+
+  return {
+    meta: {
+      id: 'reactiondiffusion',
+      name: 'Reaction–Diffusion',
+      blurb: 'Two restless chemicals negotiating coral, spots, and mazes.',
+      category: 'Reaction',
+    },
+    params: [
+      { key: 'feed', label: 'Feed', type: 'range', min: 0.01, max: 0.09, step: 0.0005, default: 0.0545, hint: 'How fast U is replenished' },
+      { key: 'kill', label: 'Kill', type: 'range', min: 0.04, max: 0.07, step: 0.0005, default: 0.062, hint: 'How fast V decays' },
+      { key: 'steps', label: 'Iterations / frame', type: 'int', min: 1, max: 14, step: 1, default: 8, hint: 'Higher = faster growth' },
+      { key: 'scale', label: 'Contrast', type: 'range', min: 1, max: 6, step: 0.1, default: 3.2, hint: 'Maps V concentration to brightness' },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'ember', options: [
+        { value: 'ember', label: 'Ember' }, { value: 'coral', label: 'Coral' },
+        { value: 'ice', label: 'Ice' }, { value: 'moss', label: 'Moss' },
+        { value: 'dusk', label: 'Dusk' }, { value: 'spectral', label: 'Spectral' },
+        { value: 'cyber', label: 'Cyber' }, { value: 'mono', label: 'Mono' } ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard: stage not sized yet
+      // Long edge -> MAXDIM, short edge by aspect (also capped). Never assume square.
+      if (c.width >= c.height) {
+        SIMW = MAXDIM;
+        SIMH = Math.max(1, Math.min(MAXDIM, Math.round(MAXDIM * c.height / c.width)));
+      } else {
+        SIMH = MAXDIM;
+        SIMW = Math.max(1, Math.min(MAXDIM, Math.round(MAXDIM * c.width / c.height)));
+      }
+      N = SIMW * SIMH;
+      u = new Float32Array(N); v = new Float32Array(N);
+      u2 = new Float32Array(N); v2 = new Float32Array(N);
+
+      // Offscreen buffer sized to the SIM grid; blit-scaled to the stage each frame.
+      off = document.createElement('canvas');
+      off.width = SIMW; off.height = SIMH;
+      offCtx = off.getContext('2d');
+      img = offCtx.createImageData(SIMW, SIMH);
+      data = img.data;
+      for (let i = 3; i < data.length; i += 4) data[i] = 255; // opaque alpha
+
+      lut = ramp(c.params.palette, 256);
+      lutPalette = c.params.palette;
+      seed(c);
+    },
+
+    step(c) {
+      if (!N) return; // not initialised (degenerate size) — bail safely
+      const p = c.params;
+      const feed = p.feed, kill = p.kill;
+      const iters = clamp(p.steps | 0, 1, 14);
+      const w = SIMW, h = SIMH;
+
+      // Rebuild the palette LUT only when the selection actually changes.
+      if (p.palette !== lutPalette) { lut = ramp(p.palette, 256); lutPalette = p.palette; }
+
+      // Run several Gray-Scott iterations per displayed frame.
+      for (let it = 0; it < iters; it++) {
+        for (let y = 0; y < h; y++) {
+          const yu = (y - 1 + h) % h, yd = (y + 1) % h;
+          const row = y * w, rowU = yu * w, rowD = yd * w;
+          for (let x = 0; x < w; x++) {
+            const xl = (x - 1 + w) % w, xr = (x + 1) % w;
+            const i = row + x;
+            const uc = u[i], vc = v[i];
+            // Weighted toroidal Laplacian: ortho +0.2, diag +0.05, center -1.
+            const lu =
+              (u[row + xl] + u[row + xr] + u[rowU + x] + u[rowD + x]) * 0.2 +
+              (u[rowU + xl] + u[rowU + xr] + u[rowD + xl] + u[rowD + xr]) * 0.05 - uc;
+            const lv =
+              (v[row + xl] + v[row + xr] + v[rowU + x] + v[rowD + x]) * 0.2 +
+              (v[rowU + xl] + v[rowU + xr] + v[rowD + xl] + v[rowD + xr]) * 0.05 - vc;
+            const uvv = uc * vc * vc;
+            u2[i] = uc + (DU * lu - uvv + feed * (1 - uc));
+            v2[i] = vc + (DV * lv + uvv - (feed + kill) * vc);
+          }
+        }
+        // Swap front/back buffers (no allocation).
+        let t = u; u = u2; u2 = t;
+        t = v; v = v2; v2 = t;
+      }
+
+      // Render V -> brightness -> palette LUT -> ImageData.
+      const scale = p.scale;
+      for (let i = 0; i < N; i++) {
+        let t = v[i] * scale;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const li = ((t * 255) | 0) * 3;
+        const o = i * 4;
+        data[o] = lut[li];
+        data[o + 1] = lut[li + 1];
+        data[o + 2] = lut[li + 2];
+      }
+      offCtx.putImageData(img, 0, 0);
+
+      // Blit the sim grid across the full logical rect (handles any aspect / dpr).
+      c.ctx.imageSmoothingEnabled = true;
+      c.ctx.drawImage(off, 0, 0, c.width, c.height);
+    },
+
+    onPointer(c) {
+      if (!N || !c.pointer.down) return;
+      const cx = clamp((c.pointer.x / c.width) * SIMW | 0, 0, SIMW - 1);
+      const cy = clamp((c.pointer.y / c.height) * SIMH | 0, 0, SIMH - 1);
+      paint(cx, cy);
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/particlelife.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// particlelife.js — Particle Life / Clusters.
+//
+// N particles of K species drift in a toroidal world. An asymmetric K x K
+// matrix A in [-1,1] (seeded from c.rng) sets how each species feels every
+// other: universal short-range repulsion below rMin, a signed attraction band
+// out to rMax, nothing beyond. Asymmetry (A[i][j] != A[j][i]) is what breeds
+// chasing, orbits and self-organising "cells" — emergent life from a few rules.
+//
+// Performance: a uniform spatial-hash grid (cell size = rMax) is rebuilt each
+// frame via a counting-sort layout so each particle only tests the particles in
+// its neighbouring cells — O(N * neighbours), not O(N^2). All buffers are
+// allocated in init() / on a structural change; the step() hot loop allocates
+// nothing.
+
+const { sampleCss } = __reg["src/engine/color.js"];
+
+const DT = 0.4;          // integration step (small, as the brief suggests)
+const FORCE_GAIN = 24;   // scales forceScale into a lively acceleration
+const RMIN_FRAC = 0.3;   // rMin = rMax * RMIN_FRAC
+
+function create() {
+  // Particle state (Structure-of-Arrays for cache-friendly hot loops).
+  // Positions are double-buffered: every particle reads neighbours from the
+  // CURRENT x/y snapshot and writes its next position into nx/ny, then we swap.
+  // Without this, integrating x[i] in place would let particle i feel its
+  // lower-indexed neighbours at their *already-advanced* positions — an
+  // order-dependent (Gauss–Seidel) asymmetry that corrupts the dynamics. The
+  // brief's force law assumes a single consistent snapshot (Jacobi update).
+  let x = null, y = null, vx = null, vy = null, species = null;
+  let nx = null, ny = null;     // scratch position buffers (swapped each frame)
+  let N = 0, K = 0;
+  let A = null;                 // flat K*K attraction matrix in [-1,1], row=feeler
+
+  // Spatial-hash grid (rebuilt each frame; buffers reused across frames).
+  let cols = 0, rows = 0, cellW = 1, cellH = 1;
+  let cellCount = null, cellStart = null, cellItems = null;
+  // Precomputed neighbour cells per column / row so the hot loop never
+  // double-counts when the grid is small (cols/rows < 3 with toroidal wrap).
+  let colNbr = null, colNbrN = null, rowNbr = null, rowNbrN = null;
+  let gridW = 0, gridH = 0;     // canvas size the grid was built for
+  let lastRMax = -1;
+
+  // Build the neighbour-cell lookup for one axis. With cell size == rMax a
+  // particle can only reach the adjacent cell, so 3 wrapped neighbours suffice
+  // — but when there are <= 3 cells those wrapped offsets repeat (e.g. cols=2
+  // gives {1,0,1}), which would count forces twice. In that case we instead
+  // list every distinct cell once. Returns {flat, counts} typed arrays.
+  function buildAxisNbr(n) {
+    const counts = new Int32Array(n);
+    const stride = 3;                       // max neighbours per cell (3-wide)
+    const flat = new Int32Array(n * stride);
+    for (let g = 0; g < n; g++) {
+      if (n <= 3) {
+        // Every cell is reachable; visit each exactly once.
+        for (let c2 = 0; c2 < n; c2++) flat[g * stride + c2] = c2;
+        counts[g] = n;
+      } else {
+        let k = -1;
+        flat[g * stride + ++k] = g === 0 ? n - 1 : g - 1; // wrapped left
+        flat[g * stride + ++k] = g;                        // self
+        flat[g * stride + ++k] = g === n - 1 ? 0 : g + 1;  // wrapped right
+        counts[g] = 3;
+      }
+    }
+    return { flat, counts, stride };
+  }
+
+  // (Re)build grid dimensions + neighbour tables for the current rMax / canvas.
+  function sizeGrid(c, rMax) {
+    cols = Math.max(1, Math.floor(c.width / rMax));
+    rows = Math.max(1, Math.floor(c.height / rMax));
+    cellW = c.width / cols;
+    cellH = c.height / rows;
+    const nCells = cols * rows;
+    cellCount = new Int32Array(nCells);
+    cellStart = new Int32Array(nCells + 1);
+    if (!cellItems || cellItems.length !== N) cellItems = new Int32Array(N);
+    const cn = buildAxisNbr(cols);
+    colNbr = cn.flat; colNbrN = cn.counts;
+    const rn = buildAxisNbr(rows);
+    rowNbr = rn.flat; rowNbrN = rn.counts;
+    lastRMax = rMax;
+    gridW = c.width; gridH = c.height;
+  }
+
+  // Clamp a coordinate to a valid cell index along an axis.
+  function cellIdx(v, size, n) {
+    let i = (v / size) | 0;
+    if (i < 0) i = 0; else if (i >= n) i = n - 1;
+    return i;
+  }
+
+  return {
+    meta: {
+      id: 'particlelife',
+      name: 'Particle Life',
+      blurb: 'A few asymmetric rules; colonies that chase, orbit and breathe.',
+      category: 'Life',
+    },
+    params: [
+      { key: 'particles', label: 'Particles', type: 'int', min: 300, max: 2500, step: 100, default: 1200, structural: true },
+      { key: 'species', label: 'Species', type: 'int', min: 2, max: 7, step: 1, default: 5, structural: true, hint: 'Number of colors / kinds' },
+      { key: 'rMax', label: 'Reach', type: 'range', min: 30, max: 170, step: 1, default: 90, hint: 'Interaction radius' },
+      { key: 'forceScale', label: 'Force', type: 'range', min: 0.1, max: 3, step: 0.05, default: 1 },
+      { key: 'friction', label: 'Friction', type: 'range', min: 0.5, max: 0.99, step: 0.01, default: 0.86, hint: 'Lower = more damping' },
+      { key: 'fade', label: 'Trail', type: 'range', min: 0.02, max: 0.4, step: 0.01, default: 0.12, hint: 'Lower = longer trails' },
+      { key: 'attract', label: 'Pointer pulls', type: 'toggle', default: true, hint: 'Off = pointer repels' },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'cyber', options: [
+        { value: 'cyber', label: 'Cyber' }, { value: 'spectral', label: 'Spectral' },
+        { value: 'ember', label: 'Ember' }, { value: 'ice', label: 'Ice' },
+        { value: 'coral', label: 'Coral' }, { value: 'moss', label: 'Moss' } ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return;     // stage not laid out yet
+      N = Math.max(1, c.params.particles | 0);
+      K = Math.max(1, c.params.species | 0);
+
+      // Seed the asymmetric attraction matrix in [-1,1] from the seeded Rng.
+      A = new Float32Array(K * K);
+      for (let i = 0; i < K * K; i++) A[i] = c.rng.range(-1, 1);
+
+      // Allocate + seed particles (positions/velocities/species) deterministically.
+      x = new Float32Array(N); y = new Float32Array(N);
+      nx = new Float32Array(N); ny = new Float32Array(N);
+      vx = new Float32Array(N); vy = new Float32Array(N);
+      species = new Uint8Array(N);
+      for (let i = 0; i < N; i++) {
+        x[i] = c.rng.next() * c.width;
+        y[i] = c.rng.next() * c.height;
+        species[i] = c.rng.next() * K | 0;   // floor(rng*K) in [0, K-1]
+      }
+
+      cellItems = new Int32Array(N);
+      sizeGrid(c, c.params.rMax);
+      c.clear(1);                            // clean opaque opening frame
+    },
+
+    step(c) {
+      if (!N || !x || !c.width || !c.height) return;
+      const p = c.params, ctx = c.ctx;
+      const w = c.width, h = c.height;
+      const rMax = p.rMax, rMin = rMax * RMIN_FRAC;
+      const rMax2 = rMax * rMax;
+      const invBand = 1 / (rMax - rMin);     // (rMax>rMin always, so no div0)
+      const invRMin = 1 / rMin;
+      const force = p.forceScale * FORCE_GAIN;
+      const friction = p.friction;
+      const halfW = w * 0.5, halfH = h * 0.5;
+
+      // Rebuild grid when rMax changed or the canvas resized under us.
+      if (rMax !== lastRMax || gridW !== w || gridH !== h) sizeGrid(c, rMax);
+      const cc = cols, rr = rows, cw = cellW, ch = cellH;
+
+      // ---- Build spatial hash via counting sort (no allocations) ----
+      const nCells = cc * rr;
+      cellCount.fill(0, 0, nCells);
+      for (let i = 0; i < N; i++) {
+        const cx = cellIdx(x[i], cw, cc), cy = cellIdx(y[i], ch, rr);
+        cellCount[cy * cc + cx]++;
+      }
+      let acc = 0;
+      for (let ci = 0; ci < nCells; ci++) { cellStart[ci] = acc; acc += cellCount[ci]; }
+      cellStart[nCells] = acc;
+      // Reuse cellCount as a per-cell write cursor (starts at each cell's base).
+      for (let ci = 0; ci < nCells; ci++) cellCount[ci] = cellStart[ci];
+      for (let i = 0; i < N; i++) {
+        const cx = cellIdx(x[i], cw, cc), cy = cellIdx(y[i], ch, rr);
+        cellItems[cellCount[cy * cc + cx]++] = i;
+      }
+
+      const ptrActive = c.pointer.down;
+      const ptrSign = p.attract ? 1 : -1;
+      const ptrR = rMax * 1.8, ptrR2 = ptrR * ptrR, ptrPull = 60;
+      const ptrX = c.pointer.x, ptrY = c.pointer.y;
+
+      // ---- Accumulate forces over the neighbouring cells ----
+      for (let i = 0; i < N; i++) {
+        const xi = x[i], yi = y[i];
+        const siRow = species[i] * K;        // matrix row base for the feeler
+        let ax = 0, ay = 0;
+        const gx = cellIdx(xi, cw, cc), gy = cellIdx(yi, ch, rr);
+        const rBase = gy * 3, cBase = gx * 3;   // stride==3 in the nbr tables
+        const rN = rowNbrN[gy], cN = colNbrN[gx];
+
+        for (let oy = 0; oy < rN; oy++) {
+          const rowBase = rowNbr[rBase + oy] * cc;
+          for (let ox = 0; ox < cN; ox++) {
+            const cell = rowBase + colNbr[cBase + ox];
+            const start = cellStart[cell], end = cellStart[cell + 1];
+            for (let k = start; k < end; k++) {
+              const j = cellItems[k];
+              if (j === i) continue;
+              // Shortest toroidal displacement from i to j.
+              let dx = x[j] - xi; if (dx > halfW) dx -= w; else if (dx < -halfW) dx += w;
+              let dy = y[j] - yi; if (dy > halfH) dy -= h; else if (dy < -halfH) dy += h;
+              const d2 = dx * dx + dy * dy;
+              if (d2 >= rMax2 || d2 === 0) continue;   // out of range / self-overlap
+              const d = Math.sqrt(d2);
+              let f;
+              if (d < rMin) {
+                f = d * invRMin - 1;                            // short-range repulsion (<0)
+              } else {
+                const a = A[siRow + species[j]];
+                f = a * (1 - Math.abs(2 * d - rMin - rMax) * invBand); // signed attraction band
+              }
+              const inv = f / d;                               // (dx,dy)/d * f, fused
+              ax += dx * inv; ay += dy * inv;
+            }
+          }
+        }
+
+        // Pointer interaction (continuous while held): pull or push nearby ones.
+        if (ptrActive) {
+          let dx = ptrX - xi; if (dx > halfW) dx -= w; else if (dx < -halfW) dx += w;
+          let dy = ptrY - yi; if (dy > halfH) dy -= h; else if (dy < -halfH) dy += h;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < ptrR2 && d2 > 0.0001) {
+            const d = Math.sqrt(d2);
+            const fall = (1 - d / ptrR) * ptrPull * ptrSign / d;
+            ax += dx * fall; ay += dy * fall;
+          }
+        }
+
+        // Semi-implicit Euler with damping; forceScale folded into acceleration.
+        const nvx = (vx[i] + ax * force * DT) * friction;
+        const nvy = (vy[i] + ay * force * DT) * friction;
+        vx[i] = nvx; vy[i] = nvy;
+        // Integrate into the SCRATCH buffer + toroidal wrap (modulo handles
+        // overshoot from any speed). Reading stays on the current x/y snapshot,
+        // so all particles see the same positions this frame (Jacobi update).
+        let px2 = (xi + nvx * DT) % w; if (px2 < 0) px2 += w;
+        let py2 = (yi + nvy * DT) % h; if (py2 < 0) py2 += h;
+        nx[i] = px2; ny[i] = py2;
+      }
+
+      // Commit the frame: swap scratch buffers in to become the current state.
+      const tx = x; x = nx; nx = tx;
+      const ty = y; y = ny; ny = ty;
+
+      // ---- Render: faint trails, then a dot per particle coloured by species ----
+      c.clear(p.fade);
+      const denom = K > 1 ? K - 1 : 1;
+      // One fill style per species per frame; batch all dots of a species in a
+      // single path (cheap, avoids per-dot fillStyle churn).
+      for (let s = 0; s < K; s++) {
+        ctx.fillStyle = sampleCss(p.palette, s / denom, 0.9);
+        ctx.beginPath();
+        for (let i = 0; i < N; i++) {
+          if (species[i] !== s) continue;
+          ctx.moveTo(x[i] + 1.6, y[i]);                 // jump pen so subpaths don't connect
+          ctx.arc(x[i], y[i], 1.6, 0, 6.283185307179586);
+        }
+        ctx.fill();
+      }
+    },
+
+    onPointer() { /* continuous attraction handled in step() via c.pointer.down */ },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/attractors.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// attractors.js — strange attractors as accumulating density plots.
+//
+// A single orbit (x, y) is iterated through a chosen 2D map thousands of times
+// per frame. Each visited point is binned into a fixed-size Float32 density
+// grid (independent of canvas size). The density softly fades each frame so the
+// plot keeps breathing as the live a/b/c/d params reshape the attractor. The
+// grid is tone-mapped (log of density, normalised by a running max) through a
+// palette LUT and blitted to the stage via an offscreen ImageData.
+
+const { ramp } = __reg["src/engine/color.js"];
+
+// Fixed sim grid: 640 on the long edge keeps the per-frame binning real-time.
+const DW_MAX = 860;
+const DH_MAX = 860;
+
+function create() {
+  let DW = 0, DH = 0, N = 0;
+  let density = null;            // Float32 accumulator, length N
+  let off = null, offCtx = null, img = null, data = null;
+  let lut = null, lutPalette = null; // palette ramp + the name it was built for
+  let ox = 0, oy = 0;            // running orbit state, carried across frames
+  let maxDensity = 1;            // tracked peak for log tone-mapping
+
+  // Reset the orbit to small values (the standard attractor starting seed).
+  function resetOrbit(c) {
+    ox = c.rng.range(-0.1, 0.1);
+    oy = c.rng.range(-0.1, 0.1);
+  }
+
+  return {
+    meta: {
+      id: 'attractors',
+      name: 'Strange Attractors',
+      blurb: 'A single restless orbit smouldering into luminous density.',
+      category: 'Math',
+    },
+    params: [
+      { key: 'type', label: 'Map', type: 'select', default: 'clifford', options: [
+        { value: 'clifford', label: 'Clifford' },
+        { value: 'dejong', label: 'De Jong' },
+        { value: 'svensson', label: 'Svensson' } ] },
+      { key: 'a', label: 'Parameter a', type: 'range', min: -3, max: 3, step: 0.01, default: -1.7, hint: 'Reshapes the orbit live' },
+      { key: 'b', label: 'Parameter b', type: 'range', min: -3, max: 3, step: 0.01, default: 1.8, hint: 'Reshapes the orbit live' },
+      { key: 'c', label: 'Parameter c', type: 'range', min: -3, max: 3, step: 0.01, default: -1.9, hint: 'Reshapes the orbit live' },
+      { key: 'd', label: 'Parameter d', type: 'range', min: -3, max: 3, step: 0.01, default: -0.4, hint: 'Reshapes the orbit live' },
+      { key: 'pointsPerFrame', label: 'Points / frame', type: 'int', min: 10000, max: 150000, step: 10000, default: 60000, hint: 'Density of the plot' },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'sand', options: [
+        { value: 'sand', label: 'Sand' }, { value: 'ember', label: 'Ember' },
+        { value: 'ice', label: 'Ice' }, { value: 'dusk', label: 'Dusk' },
+        { value: 'spectral', label: 'Spectral' }, { value: 'cyber', label: 'Cyber' },
+        { value: 'abyss', label: 'Abyss' }, { value: 'mono', label: 'Mono' } ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard: stage not sized yet
+      // Long edge -> max, short edge by aspect (also capped). Never assume square.
+      if (c.width >= c.height) {
+        DW = DW_MAX;
+        DH = Math.max(1, Math.min(DH_MAX, Math.round(DW_MAX * c.height / c.width)));
+      } else {
+        DH = DH_MAX;
+        DW = Math.max(1, Math.min(DW_MAX, Math.round(DH_MAX * c.width / c.height)));
+      }
+      N = DW * DH;
+      density = new Float32Array(N);
+      maxDensity = 1;
+
+      // Offscreen buffer sized to the SIM grid; blit-scaled to the stage each frame.
+      off = document.createElement('canvas');
+      off.width = DW; off.height = DH;
+      offCtx = off.getContext('2d');
+      img = offCtx.createImageData(DW, DH);
+      data = img.data;
+      for (let i = 3; i < data.length; i += 4) data[i] = 255; // opaque alpha
+
+      lut = ramp(c.params.palette, 256);
+      lutPalette = c.params.palette;
+      resetOrbit(c);
+      c.clear(1);
+    },
+
+    step(c) {
+      if (!N) return; // not initialised (degenerate size) — bail safely
+      const p = c.params;
+
+      // Rebuild the palette LUT only when the selection actually changes.
+      if (p.palette !== lutPalette) { lut = ramp(p.palette, 256); lutPalette = p.palette; }
+
+      // Centre the attractor and scale its (~[-2,2]) extent into the grid.
+      const scale = Math.min(DW, DH) * 0.22;
+      const cx = DW * 0.5, cy = DH * 0.5;
+      const a = p.a, b = p.b, cc = p.c, d = p.d;
+      const type = p.type;
+      const iters = p.pointsPerFrame | 0;
+
+      // Fade the whole accumulator so the plot keeps evolving with live params.
+      for (let i = 0; i < N; i++) density[i] *= 0.96;
+      maxDensity *= 0.96;
+      if (maxDensity < 1) maxDensity = 1;
+
+      // Iterate the chosen map, binning each new point into a density cell.
+      let x = ox, y = oy;
+      for (let i = 0; i < iters; i++) {
+        let xn, yn;
+        if (type === 'dejong') {
+          xn = Math.sin(a * y) - Math.cos(b * x);
+          yn = Math.sin(cc * x) - Math.cos(d * y);
+        } else if (type === 'svensson') {
+          xn = d * Math.sin(a * x) - Math.sin(b * y);
+          yn = cc * Math.cos(a * x) + Math.cos(b * y);
+        } else { // clifford (default)
+          xn = Math.sin(a * y) + cc * Math.cos(a * x);
+          yn = Math.sin(b * x) + d * Math.cos(b * y);
+        }
+        x = xn; y = yn;
+
+        // floor() (not | 0) so signed, centred coords bin correctly: a value in
+        // (-1, 0] must map to cell -1 (rejected) rather than collapsing into 0,
+        // which would smear a false bias line along the top/left edges.
+        const px = Math.floor(cx + x * scale);
+        const py = Math.floor(cy + y * scale);
+        // Positive in-range test: a non-finite px/py (NaN from a divergent orbit)
+        // fails every comparison and is skipped here, so it can never index the
+        // density buffer. A negated || guard would instead let NaN slip through.
+        if (px >= 0 && px < DW && py >= 0 && py < DH) {
+          const idx = py * DW + px;
+          const v = density[idx] + 1;
+          density[idx] = v;
+          if (v > maxDensity) maxDensity = v;
+        }
+      }
+      // Guard against NaN runaway (some param combos diverge): reseed if needed.
+      if (!Number.isFinite(x) || !Number.isFinite(y)) resetOrbit(c);
+      else { ox = x; oy = y; }
+
+      // Tone-map: t = log(1+density) / log(1+maxDensity) -> palette LUT.
+      const invLogMax = 1 / Math.log(1 + maxDensity);
+      for (let i = 0; i < N; i++) {
+        const dv = density[i];
+        let t = dv > 0 ? Math.log(1 + dv) * invLogMax : 0;
+        if (t > 1) t = 1;
+        const li = ((t * 255) | 0) * 3;
+        const o = i * 4;
+        data[o] = lut[li];
+        data[o + 1] = lut[li + 1];
+        data[o + 2] = lut[li + 2];
+      }
+      offCtx.putImageData(img, 0, 0);
+
+      // Blit the sim grid across the full logical rect (handles any aspect / dpr).
+      c.ctx.imageSmoothingEnabled = true;
+      c.ctx.drawImage(off, 0, 0, c.width, c.height);
+    },
+
+    dispose() {
+      density = null; off = null; offCtx = null; img = null; data = null; lut = null;
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/lsystem.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// lsystem.js — L-system turtle graphics grown into plants and fractals.
+//
+// A rewriting grammar (axiom + production rules) is expanded `iterations`
+// times, then a turtle walks the resulting string emitting line segments:
+//   F or G  draw forward      +  turn right      -  turn left
+//   [        push state        ]  pop state
+// We do ONE build walk that both records every segment {x1,y1,x2,y2,depth}
+// (with deterministic per-branch noise jitter baked in) and tracks the bounding
+// box, then fit that box into the logical rect with a ~10% margin. Growth is
+// animated by drawing `drawSpeed` segments per frame onto a persistent offscreen
+// canvas (never cleared) which step() blits with drawImage. Bracket depth drives
+// both color (palette t) and a line-width taper, so trunks read heavy and dark
+// while twigs taper to bright tips.
+//
+// Param liveness: `preset`/`iterations` are structural (engine re-runs init()).
+// `angle`/`jitter` are NOT structural but DO change geometry, so step() watches
+// them (plus the seed) and rebuilds the segments + repaints the offscreen the
+// moment they change — that keeps the live controls honest without paying the
+// expand/walk cost on frames where nothing relevant moved.
+
+const { sample, rgba } = __reg["src/engine/color.js"];
+const { clamp, lerp } = __reg["src/engine/mathx.js"];
+
+const MAX_LEN = 250000; // hard cap on the expanded string length
+const COLOR_STEPS = 96; // precomputed CSS-string ramp resolution (no per-seg alloc)
+const STROKE_ALPHA = 0.92;
+
+// preset → { axiom, rules, angle (degrees) }. G is also a draw-forward symbol.
+const PRESETS = {
+  plant: { axiom: 'X', rules: { X: 'F+[[X]-X]-F[-FX]+X', F: 'FF' }, angle: 25 },
+  bush: { axiom: 'F', rules: { F: 'FF+[+F-F-F]-[-F+F+F]' }, angle: 22 },
+  dragon: { axiom: 'FX', rules: { X: 'X+YF+', Y: '-FX-Y' }, angle: 90 },
+  koch: { axiom: 'F', rules: { F: 'F+F-F-F+F' }, angle: 90 },
+  sierpinski: { axiom: 'F-G-G', rules: { F: 'F-G+F+G-F', G: 'GG' }, angle: 120 },
+};
+
+/** Expand `axiom` under `rules` for `iters` passes, capped at MAX_LEN chars. */
+function expand(axiom, rules, iters) {
+  let s = axiom;
+  for (let n = 0; n < iters; n++) {
+    let out = '';
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      out += rules[ch] !== undefined ? rules[ch] : ch;
+      if (out.length > MAX_LEN) return out.slice(0, MAX_LEN); // stop early
+    }
+    s = out;
+    if (s.length >= MAX_LEN) break;
+  }
+  return s;
+}
+
+function create() {
+  let off = null; // offscreen canvas (device-pixel sized, dpr transform applied)
+  let octx = null;
+  let segs = null; // Float32Array packed [x1,y1,x2,y2] * count, fitted to rect
+  let depths = null; // Uint16Array bracket depth per segment
+  let count = 0; // total segment count
+  let maxDepth = 1; // deepest bracket depth (for color/width normalization)
+  let drawn = 0; // segments committed to the offscreen so far
+  let colorLut = null; // COLOR_STEPS prebuilt "rgba(...)" strings, indexed by t
+  let lutPalette = ''; // palette the colorLut was built for
+  // Signature of the geometry currently baked into `segs`. step() rebuilds when
+  // any of these change (preset/iterations come via structural init too, but
+  // including them keeps the guard self-contained and cheap).
+  let geomSig = '';
+
+  function geometrySignature(c) {
+    const p = c.params;
+    return `${p.preset}|${p.iterations | 0}|${p.angle}|${p.jitter}|${c.seed}`;
+  }
+
+  // (Re)build the offscreen canvas to match the current device-pixel size and
+  // paint it with the background. Resets the committed-segment cursor so growth
+  // replays from the trunk. Returns false if the stage has no size yet.
+  function buildOffscreen(c) {
+    if (c.width <= 0 || c.height <= 0) return false;
+    off = document.createElement('canvas');
+    off.width = c.pixelWidth;
+    off.height = c.pixelHeight;
+    octx = off.getContext('2d');
+    // Draw in logical coords: device-pixel canvas + dpr scale = crisp 1:1 blit.
+    octx.setTransform(c.dpr, 0, 0, c.dpr, 0, 0);
+    octx.fillStyle = c.background; // seed the dark stage so growth sits on it
+    octx.fillRect(0, 0, c.width, c.height);
+    octx.lineCap = 'round';
+    octx.lineJoin = 'round';
+    drawn = 0;
+    return true;
+  }
+
+  // Repaint the offscreen background without reallocating the canvas (used when
+  // geometry changes but the size did not — restart growth on the same buffer).
+  function clearOffscreen(c) {
+    if (!octx) return;
+    octx.setTransform(c.dpr, 0, 0, c.dpr, 0, 0);
+    octx.fillStyle = c.background;
+    octx.fillRect(0, 0, c.width, c.height);
+    drawn = 0;
+  }
+
+  // Expand the grammar, walk the turtle to record raw segments + bbox, then fit
+  // the bbox into the logical rect with a ~10% margin (aspect-preserving).
+  function buildGeometry(c) {
+    const w = c.width;
+    const h = c.height;
+    const p = c.params;
+    if (w <= 0 || h <= 0) return; // guard zero-size init
+
+    const preset = PRESETS[p.preset] || PRESETS.plant;
+    const str = expand(preset.axiom, preset.rules, p.iterations | 0);
+
+    // First sweep: count draw segments so we can size typed arrays exactly.
+    let nSeg = 0;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if (ch === 'F' || ch === 'G') nSeg++;
+    }
+    count = nSeg;
+    maxDepth = 1;
+    segs = new Float32Array(Math.max(1, nSeg) * 4);
+    depths = new Uint16Array(Math.max(1, nSeg));
+    geomSig = geometrySignature(c);
+    if (nSeg === 0) return;
+
+    // Build sweep: turtle in arbitrary units, recording raw segments + bbox.
+    const base = (clamp(p.angle, 1, 179) * Math.PI) / 180; // turn (deg → rad)
+    const jit = clamp(p.jitter, 0, 1);
+    const stack = []; // flattened [x, y, angle, depth] quads
+    let x = 0;
+    let y = 0;
+    let ang = -Math.PI / 2; // grow upward
+    let depth = 0;
+    let si = 0;
+    // Seed the bbox with the turtle origin (0,0). Below we only fold in segment
+    // ENDPOINTS; every branch-start is a previously-stacked endpoint, so the one
+    // point that would otherwise be missed is the very first start at (0,0) —
+    // the base of the trunk. Including it keeps the fit centred and unclipped.
+    let minX = 0;
+    let minY = 0;
+    let maxX = 0;
+    let maxY = 0;
+
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if (ch === 'F' || ch === 'G') {
+        const nx = x + Math.cos(ang);
+        const ny = y + Math.sin(ang);
+        const o = si * 4;
+        segs[o] = x;
+        segs[o + 1] = y;
+        segs[o + 2] = nx;
+        segs[o + 3] = ny;
+        depths[si] = depth;
+        if (depth > maxDepth) maxDepth = depth;
+        si++;
+        x = nx;
+        y = ny;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      } else if (ch === '+' || ch === '-') {
+        // Per-branch organic jitter from seeded noise (deterministic).
+        const wobble = jit > 0 ? c.noise.noise2D(si * 0.21, depth * 1.7) * jit : 0;
+        ang += (ch === '+' ? 1 : -1) * (base + wobble);
+      } else if (ch === '[') {
+        stack.push(x, y, ang, depth);
+        depth++;
+      } else if (ch === ']' && stack.length >= 4) {
+        // Guard the pop: a string truncated at MAX_LEN can be unbalanced, and
+        // popping an empty stack would poison every later coord with NaN.
+        depth = stack.pop();
+        ang = stack.pop();
+        y = stack.pop();
+        x = stack.pop();
+      }
+    }
+
+    // Fit the bbox into the logical rect with ~10% margin, preserving aspect.
+    const spanX = Math.max(1e-6, maxX - minX);
+    const spanY = Math.max(1e-6, maxY - minY);
+    const margin = 0.1;
+    const scale = Math.min(
+      (w * (1 - 2 * margin)) / spanX,
+      (h * (1 - 2 * margin)) / spanY,
+    );
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    // Map model point → logical pixel, centered in the stage.
+    for (let i = 0; i < si; i++) {
+      const o = i * 4;
+      segs[o] = (segs[o] - cx) * scale + w / 2;
+      segs[o + 1] = (segs[o + 1] - cy) * scale + h / 2;
+      segs[o + 2] = (segs[o + 2] - cx) * scale + w / 2;
+      segs[o + 3] = (segs[o + 3] - cy) * scale + h / 2;
+    }
+  }
+
+  // Precompute a small ramp of "rgba(...)" strings so the per-segment draw loop
+  // never allocates a color string (sampleCss would, on every segment).
+  function ensureColorLut(palette) {
+    if (palette === lutPalette && colorLut) return;
+    colorLut = new Array(COLOR_STEPS);
+    for (let i = 0; i < COLOR_STEPS; i++) {
+      const t = i / (COLOR_STEPS - 1);
+      const [r, g, b] = sample(palette, 0.18 + t * 0.78);
+      colorLut[i] = rgba(r, g, b, STROKE_ALPHA);
+    }
+    lutPalette = palette;
+  }
+
+  // Commit up to `n` more segments to the offscreen (without clearing it).
+  function drawBatch(c, n) {
+    if (!octx || count === 0 || drawn >= count) return;
+    ensureColorLut(c.params.palette);
+    const end = Math.min(count, drawn + n);
+    const invD = 1 / maxDepth;
+    const invN = 1 / count;
+    // Branching forms (deep stacks) color by depth; bracket-free curves
+    // (Koch, Dragon, Sierpinski) have ~no depth variation, so blend in path
+    // progress to give them a gradient instead of one flat hue.
+    const depthMix = clamp((maxDepth - 1) / 4, 0, 1);
+    const lutMax = COLOR_STEPS - 1;
+    const lut = colorLut;
+    for (let i = drawn; i < end; i++) {
+      const o = i * 4;
+      const dt = clamp(depths[i] * invD, 0, 1);
+      const pt = i * invN; // progress along the emission order
+      const t = lerp(pt, dt, depthMix);
+      // Deeper branches: brighter palette stop + thinner stroke (taper).
+      octx.strokeStyle = lut[(t * lutMax + 0.5) | 0];
+      octx.lineWidth = lerp(2.6, 0.6, dt);
+      octx.beginPath();
+      octx.moveTo(segs[o], segs[o + 1]);
+      octx.lineTo(segs[o + 2], segs[o + 3]);
+      octx.stroke();
+    }
+    drawn = end;
+  }
+
+  return {
+    meta: {
+      id: 'lsystem',
+      name: 'L-System Botany',
+      blurb: 'Rewriting grammars unfurling into procedural plants and fractals.',
+      category: 'Growth',
+    },
+
+    params: [
+      { key: 'preset', label: 'Form', type: 'select', default: 'plant', structural: true, options: [
+        { value: 'plant', label: 'Plant' }, { value: 'bush', label: 'Bush' },
+        { value: 'dragon', label: 'Dragon Curve' }, { value: 'koch', label: 'Koch Island' },
+        { value: 'sierpinski', label: 'Sierpinski' },
+      ] },
+      { key: 'iterations', label: 'Generations', type: 'int', min: 1, max: 7, step: 1, default: 5, structural: true, hint: 'Rewrite passes — higher is denser' },
+      { key: 'angle', label: 'Branch angle', type: 'range', min: 5, max: 120, step: 1, default: 25, hint: 'Degrees per turn' },
+      { key: 'jitter', label: 'Wobble', type: 'range', min: 0, max: 0.5, step: 0.01, default: 0.12, hint: 'Organic per-branch angle variation' },
+      { key: 'drawSpeed', label: 'Growth rate', type: 'int', min: 20, max: 4000, step: 20, default: 600, hint: 'Segments drawn per frame' },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'moss', options: [
+        { value: 'moss', label: 'Moss' }, { value: 'ember', label: 'Ember' },
+        { value: 'spectral', label: 'Spectral' }, { value: 'coral', label: 'Coral' },
+        { value: 'sand', label: 'Sand' }, { value: 'ice', label: 'Ice' },
+        { value: 'dusk', label: 'Dusk' }, { value: 'cyber', label: 'Cyber' },
+      ] },
+    ],
+
+    init(c) {
+      // Structural rebuild: fresh offscreen + fresh geometry, growth from zero.
+      if (!buildOffscreen(c)) return; // zero-size stage; step() retries later
+      buildGeometry(c);
+      ensureColorLut(c.params.palette);
+      c.clear(1);
+    },
+
+    step(c) {
+      // Guard: if init bailed on a zero-size stage, build once we have a size.
+      if (!off && c.width > 0 && c.height > 0) {
+        if (buildOffscreen(c)) buildGeometry(c);
+      }
+      if (!off) return;
+
+      // Recover from a stage resize that left the offscreen the wrong size.
+      if (off.width !== c.pixelWidth || off.height !== c.pixelHeight) {
+        buildOffscreen(c);
+        buildGeometry(c);
+      }
+
+      // Live non-structural geometry params (angle/jitter) or a seed change:
+      // rebuild the segments and replay growth on the existing offscreen.
+      if (geomSig !== geometrySignature(c)) {
+        buildGeometry(c);
+        clearOffscreen(c);
+      }
+
+      // Grow: commit the next batch, then blit the whole offscreen.
+      if (drawn < count) drawBatch(c, Math.max(1, c.params.drawSpeed | 0));
+      c.clear(1);
+      c.ctx.drawImage(off, 0, 0, c.width, c.height);
+    },
+
+    onPointer(c, type) {
+      // Tap to instantly grow the rest of the plant.
+      if (type === 'down') drawBatch(c, count);
+    },
+
+    dispose() {
+      off = null;
+      octx = null;
+      segs = null;
+      depths = null;
+      colorLut = null;
+      lutPalette = '';
+      geomSig = '';
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/lenia.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// lenia.js — Lenia: smooth continuous cellular automata (Bert Chan).
+//
+// A fixed 120x120 toroidal grid of Float32 states in [0,1]. Each step convolves
+// the field with a smooth ring kernel to get a potential U, then nudges every
+// cell by dt * G(U) where G is a Gaussian "growth" curve centered on mu. With
+// the right mu/sigma the field self-organizes into drifting, gliding lifeforms.
+// Rendered through a palette ramp into an offscreen canvas, then drawn scaled.
+
+const { ramp } = __reg["src/engine/color.js"];
+const { clamp } = __reg["src/engine/mathx.js"];
+
+const SIZE = 140; // square sim grid; convolution-bound, so balanced for crisp detail vs framerate
+const RMAX = 13;  // hard cap on kernel radius — keeps the convolution real-time
+
+function create() {
+  let state = null, next = null;          // Float32 fields, length SIZE*SIZE
+  let kdx = null, kdy = null, kw = null;  // precomputed ring-kernel offsets + weights
+  let kernR = 0;                          // radius the current kernel was built for
+  let wrap = null;                        // toroidal index LUT (see buildWrap)
+  let off = null, octx = null, img = null, data = null; // offscreen render target
+  let lut = null;                         // palette ramp (256 rgb triples)
+  let lutName = null;
+
+  // Toroidal-wrap LUT so the hot convolution loop avoids per-neighbor modulo.
+  // Neighbor coords are coord = base + offset where base in [0, SIZE) and
+  // |offset| <= RMAX, so coord spans [-RMAX, SIZE-1+RMAX]. We bias every lookup
+  // by SIZE (the hot loop adds SIZE to y/x first), giving access indices in
+  // [SIZE-RMAX, 2*SIZE-1+RMAX]; sizing the table to 2*SIZE+RMAX and filling the
+  // full coordinate span guarantees every access is in-bounds and initialized.
+  function buildWrap() {
+    wrap = new Int16Array(2 * SIZE + RMAX);
+    for (let v = -SIZE; v < 2 * SIZE + RMAX; v++) {
+      const i = v + SIZE;
+      if (i >= 0 && i < wrap.length) wrap[i] = ((v % SIZE) + SIZE) % SIZE;
+    }
+  }
+
+  // Build the normalized ring kernel for radius R (only when R changes).
+  function buildKernel(R) {
+    const dx = [], dy = [], w = [];
+    let sum = 0;
+    for (let y = -R; y <= R; y++) {
+      for (let x = -R; x <= R; x++) {
+        const r = Math.hypot(x, y);
+        if (r <= 0 || r > R) continue;
+        const d = r / R;                        // normalized radius in (0,1]
+        const wt = Math.exp(-((d - 0.5) * (d - 0.5)) / (2 * 0.15 * 0.15));
+        dx.push(x); dy.push(y); w.push(wt); sum += wt;
+      }
+    }
+    const inv = sum > 0 ? 1 / sum : 0;          // guard divide-by-zero (sum>0 for R>=1)
+    kdx = Int8Array.from(dx);                    // |offset| <= RMAX fits int8
+    kdy = Int8Array.from(dy);
+    kw = Float32Array.from(w, (v) => v * inv);   // normalize weights to sum 1
+    kernR = R;
+    if (!wrap) buildWrap();
+  }
+
+  // Seed `state` with a smooth field whose central density sits near the growth
+  // center mu, so large areas fall inside the narrow growth band and self-
+  // organize into gliders instead of immediately decaying. Built from a coarse
+  // random lattice, blurred smooth, then scaled and masked to a central disk.
+  function seedField(c, hi, region) {
+    state.fill(0);
+    const cx = SIZE >> 1, cy = SIZE >> 1, step = 6;
+    for (let gy = 0; gy < SIZE; gy += step) {
+      for (let gx = 0; gx < SIZE; gx += step) {
+        const val = c.rng.next();
+        for (let y = 0; y < step; y++) {
+          for (let x = 0; x < step; x++) {
+            const px = gx + x, py = gy + y;
+            if (px < SIZE && py < SIZE) state[py * SIZE + px] = val;
+          }
+        }
+      }
+    }
+    // Blur the blocky lattice into smooth value-noise (4 box passes). Each pass
+    // reads `state`, writes `next`, then swaps; an even count leaves the result
+    // back in `state`.
+    for (let pass = 0; pass < 4; pass++) {
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          let a = 0;
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              const nx = (x + dx + SIZE) % SIZE, ny = (y + dy + SIZE) % SIZE;
+              a += state[ny * SIZE + nx];
+            }
+          }
+          next[y * SIZE + x] = a / 25;
+        }
+      }
+      const tmp = state; state = next; next = tmp;
+    }
+    // Scale to [0,hi] and fade outside a central disk (soft edge) -> calm border.
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const r = Math.hypot(x - cx, y - cy);
+        const mask = r < region ? 1 : Math.max(0, 1 - (r - region) / 8);
+        state[y * SIZE + x] = clamp(state[y * SIZE + x] * hi * mask, 0, 1);
+      }
+    }
+  }
+
+  // Paint a smooth circular blob of life centered on grid cell (cx,cy).
+  function blob(c, cx, cy, radius, peak) {
+    for (let y = -radius; y <= radius; y++) {
+      for (let x = -radius; x <= radius; x++) {
+        const r = Math.hypot(x, y);
+        if (r > radius) continue;
+        const gx = ((cx + x) % SIZE + SIZE) % SIZE;
+        const gy = ((cy + y) % SIZE + SIZE) % SIZE;
+        const fall = 1 - r / radius;                  // 1 at center -> 0 at edge
+        const v = peak * fall * (0.6 + 0.4 * c.rng.next());
+        const idx = gy * SIZE + gx;
+        if (v > state[idx]) state[idx] = clamp(v, 0, 1);
+      }
+    }
+  }
+
+  return {
+    meta: {
+      id: 'lenia',
+      name: 'Lenia',
+      blurb: 'Smooth cellular automata where gliding cells breathe and divide.',
+      category: 'Life',
+    },
+    params: [
+      { key: 'mu', label: 'Growth center', type: 'range', min: 0.10, max: 0.40, step: 0.005, default: 0.15, hint: 'Target neighborhood density' },
+      { key: 'sigma', label: 'Growth width', type: 'range', min: 0.008, max: 0.05, step: 0.001, default: 0.017, hint: 'Tolerance around the center' },
+      { key: 'dt', label: 'Time step', type: 'range', min: 0.04, max: 0.3, step: 0.01, default: 0.1, hint: 'Higher = livelier, less stable' },
+      { key: 'R', label: 'Kernel radius', type: 'int', min: 8, max: 13, step: 1, default: 12, structural: true, hint: 'Size of each cell’s sensing ring' },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'spectral', options: [
+        { value: 'spectral', label: 'Spectral' }, { value: 'abyss', label: 'Abyss' },
+        { value: 'ember', label: 'Ember' }, { value: 'moss', label: 'Moss' },
+        { value: 'ice', label: 'Ice' }, { value: 'cyber', label: 'Cyber' } ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard: stage not sized yet
+      const n = SIZE * SIZE;
+      state = new Float32Array(n);
+      next = new Float32Array(n);
+
+      // Clamp R<=RMAX for real-time even if a structural change requests more.
+      buildKernel(clamp(c.params.R | 0, 1, RMAX));
+
+      // Offscreen render target at sim resolution; smoothing on for organic look.
+      off = document.createElement('canvas');
+      off.width = SIZE; off.height = SIZE;
+      octx = off.getContext('2d');
+      img = octx.createImageData(SIZE, SIZE);
+      data = img.data;
+      lutName = c.params.palette;
+      lut = ramp(lutName, 256);
+
+      // Seed a smooth field tuned so the central density hovers near mu — this
+      // reliably births drifting lifeforms rather than decaying to emptiness.
+      seedField(c, 0.42, 34);
+      c.clear(1);
+    },
+
+    step(c) {
+      if (!state) return;
+      const p = c.params;
+      const R = clamp(p.R | 0, 1, RMAX);
+      if (R !== kernR) buildKernel(R); // structural change rebuilds the kernel
+      if (p.palette !== lutName) { lutName = p.palette; lut = ramp(lutName, 256); }
+
+      const mu = p.mu, dt = p.dt;
+      const sig = p.sigma > 1e-4 ? p.sigma : 1e-4; // guard divide-by-zero
+      const inv2s2 = 1 / (2 * sig * sig);
+      const kn = kw.length;
+      const st = state, nx2 = next, kx = kdx, ky = kdy, w = kw, W = wrap; // locals = faster
+
+      // One simulation tick: convolve with the ring kernel, then apply growth.
+      // The wrap LUT replaces two modulos per neighbor with two array reads.
+      for (let y = 0; y < SIZE; y++) {
+        const rowBase = y * SIZE, yo = y + SIZE;
+        for (let x = 0; x < SIZE; x++) {
+          const xo = x + SIZE;
+          let u = 0;
+          for (let k = 0; k < kn; k++) {
+            const row = W[yo + ky[k]] * SIZE; // wrapped neighbor row offset
+            u += w[k] * st[row + W[xo + kx[k]]];
+          }
+          // Growth G(u) = 2*exp(-((u-mu)^2)/(2*sig^2)) - 1, in [-1,1].
+          const du = u - mu;
+          const g = 2 * Math.exp(-(du * du) * inv2s2) - 1;
+          const v = st[rowBase + x] + dt * g;
+          nx2[rowBase + x] = v < 0 ? 0 : v > 1 ? 1 : v;
+        }
+      }
+      const tmp = state; state = next; next = tmp; // swap buffers
+
+      // Render the live field through the palette ramp into the offscreen image.
+      const cur = state;
+      for (let i = 0, j = 0; i < cur.length; i++, j += 4) {
+        let t = cur[i]; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const l3 = ((t * 255) | 0) * 3;
+        data[j] = lut[l3]; data[j + 1] = lut[l3 + 1]; data[j + 2] = lut[l3 + 2];
+        data[j + 3] = 255;
+      }
+      octx.putImageData(img, 0, 0);
+
+      // Draw scaled to the full logical rect (works for any aspect ratio); blit
+      // goes to c.ctx via drawImage so the dpr transform is respected.
+      const ctx = c.ctx;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(off, 0, 0, SIZE, SIZE, 0, 0, c.width, c.height);
+    },
+
+    // While the pointer is down, paint a smooth blob of life at the mapped cell.
+    onPointer(c, type) {
+      if (!state || !c.pointer.down || type === 'up') return;
+      const gx = clamp(Math.floor((c.pointer.x / c.width) * SIZE), 0, SIZE - 1);
+      const gy = clamp(Math.floor((c.pointer.y / c.height) * SIZE), 0, SIZE - 1);
+      blob(c, gx, gy, Math.max(6, kernR >> 1), 1.0);
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/differentialgrowth.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// differentialgrowth.js — a closed curve that grows by accumulating length.
+// Each node is pulled toward the midpoint of its ring-neighbours (keeps spacing
+// even) and pushed away from any node within `repelRadius` (found through a
+// uniform spatial-hash grid so the per-frame cost stays ~O(N) not O(N²)). When
+// a segment stretches past `splitDist` a new node is inserted at its midpoint,
+// so the ring lengthens and is forced to buckle and fold — the brain-coral look.
+//
+// Topology is a DOUBLY-linked ring (nextIdx/prevIdx) over fixed-size typed
+// arrays sized to maxNodes, with a free-list for recycled slots. The back-links
+// give O(1) mid-ring insertion and let both the force pass and the renderer read
+// each node's two neighbours without any per-frame ring walk. Positions are
+// double-buffered so every node steers off the same snapshot, and every buffer
+// is allocated once in init() so step() does no allocation in its hot loops.
+
+const { sampleCss } = __reg["src/engine/color.js"];
+const { TAU } = __reg["src/engine/mathx.js"];
+
+function create() {
+  // Node storage (indices into these are stable until a slot is freed).
+  let nx = null, ny = null;     // current positions
+  let bx = null, by = null;     // next positions (double buffer)
+  let nextIdx = null;           // ring successor of each live node
+  let prevIdx = null;           // ring predecessor of each live node
+  let free = null;              // stack of free slot indices
+  let freeTop = 0;              // free-stack pointer
+  let head = 0;                 // any live node — entry into the ring
+  let count = 0;                // live node count
+  let cap = 0;                  // == maxNodes
+
+  // Spatial-hash scratch (intrusive per-cell linked lists), sized once for the
+  // worst case so the per-frame build never allocates.
+  let cellHead = null;          // first node index in each cell, -1 if empty
+  let cellNext = null;          // next-in-cell list over node slots
+  let gridCap = 0;
+
+  const PAL = [
+    { value: 'coral', label: 'Coral' }, { value: 'ember', label: 'Ember' },
+    { value: 'ice', label: 'Ice' }, { value: 'moss', label: 'Moss' },
+    { value: 'spectral', label: 'Spectral' }, { value: 'cyber', label: 'Cyber' },
+    { value: 'dusk', label: 'Dusk' }, { value: 'sand', label: 'Sand' },
+    { value: 'abyss', label: 'Abyss' }, { value: 'mono', label: 'Mono' },
+  ];
+
+  // Pull one slot from the free list (caller guarantees count < cap).
+  function alloc() { return free[--freeTop]; }
+
+  // Seed a small jittered circle of `n` nodes, wired into a closed ring.
+  function seedRing(c, n) {
+    const cxp = c.width * 0.5, cyp = c.height * 0.5;
+    const r = Math.min(c.width, c.height) * 0.08;
+    freeTop = cap;                       // all slots free, top → bottom
+    for (let i = 0; i < cap; i++) free[i] = cap - 1 - i;
+    count = 0;
+    let prev = -1;
+    head = -1;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const s = alloc();
+      nx[s] = cxp + Math.cos(a) * r + c.rng.range(-1, 1);
+      ny[s] = cyp + Math.sin(a) * r + c.rng.range(-1, 1);
+      if (prev === -1) head = s;
+      else { nextIdx[prev] = s; prevIdx[s] = prev; }
+      prev = s;
+      count++;
+    }
+    nextIdx[prev] = head;                // close the loop (forward …
+    prevIdx[head] = prev;                // … and backward)
+  }
+
+  return {
+    meta: {
+      id: 'differentialgrowth',
+      name: 'Differential Growth',
+      blurb: 'A closed thread that crowds, buckles, and folds into coral.',
+      category: 'Growth',
+    },
+
+    params: [
+      { key: 'repelRadius', label: 'Repel radius', type: 'range', min: 8, max: 40, step: 1, default: 18, hint: 'How far nodes push each other apart (px)' },
+      { key: 'attraction', label: 'Attraction', type: 'range', min: 0, max: 2, step: 0.05, default: 0.9, hint: 'Pull toward neighbour midpoint — evens spacing' },
+      { key: 'repulsion', label: 'Repulsion', type: 'range', min: 0, max: 2, step: 0.05, default: 1.1, hint: 'Crowding force that drives the folding' },
+      { key: 'splitDist', label: 'Split distance', type: 'range', min: 6, max: 22, step: 1, default: 11, hint: 'Insert a node when a segment exceeds this' },
+      { key: 'noiseW', label: 'Wobble', type: 'range', min: 0, max: 1.2, step: 0.02, default: 0.35, hint: 'Organic noise nudge' },
+      { key: 'rate', label: 'Growth rate', type: 'range', min: 0.2, max: 2, step: 0.05, default: 1, hint: 'Overall step size per frame' },
+      { key: 'maxNodes', label: 'Max nodes', type: 'int', min: 400, max: 3500, step: 100, default: 1800, structural: true, hint: 'Ring stops growing here' },
+      { key: 'lineWidth', label: 'Line width', type: 'range', min: 0.5, max: 3, step: 0.1, default: 1.1 },
+      { key: 'pointer', label: 'Pointer', type: 'select', default: 'attract', options: [
+        { value: 'attract', label: 'Attract toward cursor' }, { value: 'off', label: 'Ignore cursor' } ] },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'coral', options: PAL },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard zero-size stage
+      cap = Math.max(8, c.params.maxNodes | 0);
+      nx = new Float32Array(cap); ny = new Float32Array(cap);
+      bx = new Float32Array(cap); by = new Float32Array(cap);
+      nextIdx = new Int32Array(cap);
+      prevIdx = new Int32Array(cap);
+      free = new Int32Array(cap);
+
+      // Grid sized for the worst case: smallest repel radius on this stage,
+      // generously padded so a live resize can never overflow the buckets.
+      const minCell = 8;
+      const cols = Math.ceil(c.width / minCell) + 2;
+      const rows = Math.ceil(c.height / minCell) + 2;
+      gridCap = cols * rows;
+      cellHead = new Int32Array(gridCap);
+      cellNext = new Int32Array(cap);
+
+      seedRing(c, Math.min(70, cap));
+      c.clear(1); // clean opening frame
+    },
+
+    step(c) {
+      if (!nx || !c.width || !c.height || count < 3) return;
+      const p = c.params, ctx = c.ctx, noise = c.noise;
+      const w = c.width, h = c.height;
+      const rate = p.rate;
+      const attW = p.attraction, repW = p.repulsion, noiseW = p.noiseW;
+      const repelR = Math.max(1e-3, p.repelRadius), repelR2 = repelR * repelR;
+
+      // Choose a cell size ≈ repel radius, never so small the grid overflows.
+      let cell = repelR;
+      let cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
+      while ((cols + 2) * (rows + 2) > gridCap && cell < Math.max(w, h)) {
+        cell += 2; cols = Math.ceil(w / cell); rows = Math.ceil(h / cell);
+      }
+      const nCells = cols * rows;
+      const lastCol = cols - 1, lastRow = rows - 1;
+
+      // ---- Build spatial hash: intrusive per-cell linked lists (no alloc) ----
+      cellHead.fill(-1, 0, nCells);
+      let node = head;
+      for (let i = 0; i < count; i++) {
+        let cx = (nx[node] / cell) | 0; if (cx < 0) cx = 0; else if (cx > lastCol) cx = lastCol;
+        let cy = (ny[node] / cell) | 0; if (cy < 0) cy = 0; else if (cy > lastRow) cy = lastRow;
+        const cI = cy * cols + cx;
+        cellNext[node] = cellHead[cI];
+        cellHead[cI] = node;
+        node = nextIdx[node];
+      }
+
+      // ---- Force pass: write new positions into the b-buffer ----
+      const nt = c.time * 0.12;              // noise time drift
+      const ptrOn = p.pointer === 'attract' && c.pointer.down;
+      const ptrX = c.pointer.x, ptrY = c.pointer.y;
+      node = head;
+      for (let i = 0; i < count; i++) {
+        const next = nextIdx[node];
+        const prev = prevIdx[node];          // O(1) thanks to the back-links
+        const x = nx[node], y = ny[node];
+
+        // Attraction: toward midpoint of the two path-neighbours.
+        const mx = (nx[prev] + nx[next]) * 0.5;
+        const my = (ny[prev] + ny[next]) * 0.5;
+        let fx = (mx - x) * attW;
+        let fy = (my - y) * attW;
+
+        // Repulsion: sum direction-weighted pushes from other nodes in the 3×3
+        // cell block, with a linear falloff to zero at repelRadius.
+        let cx = (x / cell) | 0; if (cx < 0) cx = 0; else if (cx > lastCol) cx = lastCol;
+        let cy = (y / cell) | 0; if (cy < 0) cy = 0; else if (cy > lastRow) cy = lastRow;
+        for (let gy = cy - 1; gy <= cy + 1; gy++) {
+          if (gy < 0 || gy > lastRow) continue;
+          const rowBase = gy * cols;
+          for (let gx = cx - 1; gx <= cx + 1; gx++) {
+            if (gx < 0 || gx > lastCol) continue;
+            let j = cellHead[rowBase + gx];
+            while (j !== -1) {
+              if (j !== node) {
+                const dx = x - nx[j], dy = y - ny[j];
+                const d2 = dx * dx + dy * dy;
+                if (d2 > 0 && d2 < repelR2) {
+                  const d = Math.sqrt(d2);
+                  const f = (1 - d / repelR) / d * repW; // d > 0 → no div-by-zero
+                  fx += dx * f; fy += dy * f;
+                }
+              }
+              j = cellNext[j];
+            }
+          }
+        }
+
+        // Organic wobble from a slowly drifting noise field.
+        if (noiseW !== 0) {
+          const a = noise.noise3D(x * 0.01, y * 0.01, nt) * TAU;
+          fx += Math.cos(a) * noiseW;
+          fy += Math.sin(a) * noiseW;
+        }
+
+        // Optional pointer attraction (gentle, falls off with distance).
+        if (ptrOn) {
+          const dx = ptrX - x, dy = ptrY - y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > 1) { const inv = 1 / Math.sqrt(d2); fx += dx * inv * 1.4; fy += dy * inv * 1.4; }
+        }
+
+        // Integrate; clamp inside the stage so the curve never escapes.
+        let X = x + fx * rate, Y = y + fy * rate;
+        if (X < 1) X = 1; else if (X > w - 1) X = w - 1;
+        if (Y < 1) Y = 1; else if (Y > h - 1) Y = h - 1;
+        bx[node] = X; by[node] = Y;
+
+        node = next;
+      }
+
+      // Commit positions (single sweep over the ring).
+      node = head;
+      for (let i = 0; i < count; i++) { nx[node] = bx[node]; ny[node] = by[node]; node = nextIdx[node]; }
+
+      // ---- Growth: insert a midpoint into any over-stretched segment ----
+      if (count < cap) {
+        const split2 = p.splitDist * p.splitDist;
+        node = head;
+        const startCount = count;
+        // Walk exactly the nodes that existed at frame start; the fresh midpoint
+        // is skipped this frame (we advance straight to `next`).
+        for (let i = 0; i < startCount && count < cap; i++) {
+          const next = nextIdx[node];
+          const dx = nx[next] - nx[node], dy = ny[next] - ny[node];
+          if (dx * dx + dy * dy > split2) {
+            const s = alloc();
+            nx[s] = (nx[node] + nx[next]) * 0.5;
+            ny[s] = (ny[node] + ny[next]) * 0.5;
+            // Splice s between node and next (keep both link directions intact).
+            nextIdx[node] = s; prevIdx[s] = node;
+            nextIdx[s] = next; prevIdx[next] = s;
+            count++;
+          }
+          node = next;          // either way, continue past the original segment
+        }
+      }
+
+      // ---- Render: clean frame, then the closed curve with midpoint smoothing.
+      // Each segment is a quadratic from the midpoint of (prev,node) to the
+      // midpoint of (node,next), with `node` as the control point — the standard
+      // midpoint scheme, which makes the curve C1-continuous and seamlessly
+      // closed (the last arc returns to the very first midpoint). Stroking each
+      // segment on its own lets the hue advance once around the ring.
+      c.clear(1);
+      ctx.lineWidth = p.lineWidth;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      const pal = p.palette;
+      node = head;
+      const invCount = 1 / count;
+      for (let i = 0; i < count; i++) {
+        const next = nextIdx[node];
+        const prev = prevIdx[node];
+        const aX = (nx[prev] + nx[node]) * 0.5;  // start: midpoint of incoming segment
+        const aY = (ny[prev] + ny[node]) * 0.5;
+        const bX2 = (nx[node] + nx[next]) * 0.5; // end: midpoint of outgoing segment
+        const bY2 = (ny[node] + ny[next]) * 0.5;
+        ctx.strokeStyle = sampleCss(pal, 0.18 + i * invCount * 0.72, 0.95);
+        ctx.beginPath();
+        ctx.moveTo(aX, aY);
+        ctx.quadraticCurveTo(nx[node], ny[node], bX2, bY2);
+        ctx.stroke();
+        node = next;
+      }
+    },
+
+    onPointer() { /* attraction is read live from pointer state in step() */ },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/boids.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// boids.js — Reynolds flocking. N agents carry position + velocity; three
+// steering urges (separation, alignment, cohesion) computed over neighbours
+// found through a uniform spatial-hash grid (cell = perception radius), so the
+// per-frame cost stays ~O(N) instead of O(N²). Each boid draws as a small
+// triangle pointing along its heading; optional fading trails.
+
+const { sampleCss } = __reg["src/engine/color.js"];
+const { TAU } = __reg["src/engine/mathx.js"];
+
+function create() {
+  // Agent state (flat arrays — zero per-frame allocation).
+  let px = null, py = null, vx = null, vy = null;
+  let count = 0;
+
+  // Spatial-hash scratch, sized once in init() for the worst-case grid.
+  // We bucket boids by cell with a count-sort: counts → prefix starts → order.
+  let cellCount = null;   // boids per cell
+  let cellStart = null;   // prefix-sum start offset per cell (+1 sentinel)
+  let order = null;       // boid indices grouped by cell
+  let gridCap = 0;        // allocated cell capacity
+  // Smallest cell size we can afford without overflowing gridCap, recomputed
+  // live so perception can shrink without exceeding the buffer.
+  const PALETTES = [
+    { value: 'ice', label: 'Ice' }, { value: 'ember', label: 'Ember' },
+    { value: 'spectral', label: 'Spectral' }, { value: 'cyber', label: 'Cyber' },
+    { value: 'coral', label: 'Coral' }, { value: 'moss', label: 'Moss' },
+    { value: 'abyss', label: 'Abyss' }, { value: 'dusk', label: 'Dusk' },
+  ];
+
+  function spawn(c, i, maxSpeed) {
+    px[i] = c.rng.next() * c.width;
+    py[i] = c.rng.next() * c.height;
+    const a = c.rng.next() * TAU;
+    const s = c.rng.range(maxSpeed * 0.5, maxSpeed);
+    vx[i] = Math.cos(a) * s;
+    vy[i] = Math.sin(a) * s;
+  }
+
+  return {
+    meta: {
+      id: 'boids',
+      name: 'Boids',
+      blurb: 'A restless flock, conjured from three simple rules.',
+      category: 'Life',
+    },
+
+    params: [
+      { key: 'count', label: 'Flock size', type: 'int', min: 100, max: 1500, step: 50, default: 700, structural: true },
+      { key: 'separation', label: 'Separation', type: 'range', min: 0, max: 3, step: 0.05, default: 1.6, hint: 'Avoid crowding neighbours' },
+      { key: 'alignment', label: 'Alignment', type: 'range', min: 0, max: 3, step: 0.05, default: 1.0, hint: 'Match neighbour heading' },
+      { key: 'cohesion', label: 'Cohesion', type: 'range', min: 0, max: 3, step: 0.05, default: 0.9, hint: 'Steer toward flock centre' },
+      { key: 'perception', label: 'Perception', type: 'range', min: 16, max: 90, step: 1, default: 42, hint: 'Neighbour sensing radius (px)' },
+      { key: 'maxSpeed', label: 'Max speed', type: 'range', min: 1, max: 6, step: 0.1, default: 3 },
+      { key: 'trail', label: 'Trail', type: 'range', min: 0.04, max: 1, step: 0.02, default: 1, hint: '1 = no trail' },
+      { key: 'pointerPull', label: 'Pointer', type: 'select', default: 'flee', options: [
+        { value: 'flee', label: 'Flee pointer' }, { value: 'seek', label: 'Seek pointer' } ] },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'ice', options: PALETTES },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard against zero-size stage
+      count = c.params.count | 0;
+      px = new Float32Array(count); py = new Float32Array(count);
+      vx = new Float32Array(count); vy = new Float32Array(count);
+      const ms = c.params.maxSpeed;
+      for (let i = 0; i < count; i++) spawn(c, i, ms);
+
+      // Worst case: smallest perception (16) on this stage. Size generously
+      // (+ margin) so the live grid never overflows even after a resize.
+      const minCell = 16;
+      const cols = Math.ceil(c.width / minCell) + 2;
+      const rows = Math.ceil(c.height / minCell) + 2;
+      gridCap = cols * rows;
+      cellCount = new Int32Array(gridCap);
+      cellStart = new Int32Array(gridCap + 1);
+      order = new Int32Array(count);
+
+      c.clear(1); // clean opening frame
+    },
+
+    step(c) {
+      if (!px || !c.width || !c.height) return;
+      const p = c.params, ctx = c.ctx;
+      const w = c.width, h = c.height;
+      const maxSpeed = p.maxSpeed;
+      const maxForce = 0.08 + maxSpeed * 0.04; // steering authority scales w/ speed
+      const sepW = p.separation, aliW = p.alignment, cohW = p.cohesion;
+
+      // Choose a cell size: perception, but never so small the grid overflows.
+      let cell = p.perception;
+      let cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
+      while ((cols + 2) * (rows + 2) > gridCap && cell < Math.max(w, h)) {
+        cell += 2; cols = Math.ceil(w / cell); rows = Math.ceil(h / cell);
+      }
+      const nCells = cols * rows;
+      const perc = p.perception, perc2 = perc * perc;
+      const sepR = perc * 0.4, sepR2 = sepR * sepR;
+      const cellOf = (x, y) => {
+        let cx = (x / cell) | 0; if (cx < 0) cx = 0; else if (cx >= cols) cx = cols - 1;
+        let cy = (y / cell) | 0; if (cy < 0) cy = 0; else if (cy >= rows) cy = rows - 1;
+        return cy * cols + cx;
+      };
+
+      // ---- Build spatial hash via count-sort (allocation-free) ----
+      cellCount.fill(0, 0, nCells);
+      for (let i = 0; i < count; i++) cellCount[cellOf(px[i], py[i])]++;
+      let acc = 0;
+      for (let cI = 0; cI < nCells; cI++) { cellStart[cI] = acc; acc += cellCount[cI]; }
+      cellStart[nCells] = acc;
+      // temp write cursor reuses cellCount as offset-from-start
+      cellCount.fill(0, 0, nCells);
+      for (let i = 0; i < count; i++) {
+        const cI = cellOf(px[i], py[i]);
+        order[cellStart[cI] + cellCount[cI]++] = i;
+      }
+
+      // Fade for trails (trail=1 → opaque clear, no streak).
+      c.clear(p.trail);
+      ctx.lineJoin = 'round';
+
+      // ---- Steer & integrate ----
+      for (let i = 0; i < count; i++) {
+        const x = px[i], y = py[i];
+        const cx = Math.min(cols - 1, Math.max(0, (x / cell) | 0));
+        const cy = Math.min(rows - 1, Math.max(0, (y / cell) | 0));
+
+        let sx = 0, sy = 0;            // separation accumulator
+        let ax = 0, ay = 0, aN = 0;    // alignment (avg velocity)
+        let cxs = 0, cys = 0, cN = 0;  // cohesion (avg position)
+
+        // Scan the 3×3 block of cells around this boid.
+        for (let gy = cy - 1; gy <= cy + 1; gy++) {
+          if (gy < 0 || gy >= rows) continue;
+          for (let gx = cx - 1; gx <= cx + 1; gx++) {
+            if (gx < 0 || gx >= cols) continue;
+            const cI = gy * cols + gx;
+            const start = cellStart[cI], end = cellStart[cI + 1];
+            for (let k = start; k < end; k++) {
+              const j = order[k];
+              if (j === i) continue;
+              const dx = x - px[j], dy = y - py[j];
+              const d2 = dx * dx + dy * dy;
+              if (d2 > perc2 || d2 === 0) continue;
+              // alignment + cohesion use every neighbour in perception
+              ax += vx[j]; ay += vy[j]; aN++;
+              cxs += px[j]; cys += py[j]; cN++;
+              // separation only repels close neighbours, weighted by 1/d
+              if (d2 < sepR2) {
+                const inv = 1 / Math.sqrt(d2);
+                sx += dx * inv * inv; sy += dy * inv * inv;
+              }
+            }
+          }
+        }
+
+        // Convert each urge into a steering force: desired→normalized→×maxSpeed,
+        // minus current velocity, then clamped to maxForce (Reynolds).
+        let fx = 0, fy = 0;
+        if (sx !== 0 || sy !== 0) { const s = steerScale(sx, sy, maxSpeed); fx += (sx * s - vx[i]) * sepW; fy += (sy * s - vy[i]) * sepW; }
+        if (aN > 0) { const s = steerScale(ax, ay, maxSpeed); fx += (ax * s - vx[i]) * aliW; fy += (ay * s - vy[i]) * aliW; }
+        if (cN > 0) { const dx = cxs / cN - x, dy = cys / cN - y; const s = steerScale(dx, dy, maxSpeed); fx += (dx * s - vx[i]) * cohW; fy += (dy * s - vy[i]) * cohW; }
+
+        // Pointer interaction: steer toward or away from the cursor.
+        if (c.pointer.down) {
+          const dir = p.pointerPull === 'seek' ? 1 : -1;
+          let dx = (c.pointer.x - x) * dir, dy = (c.pointer.y - y) * dir;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 40000 && d2 > 0) { const s = steerScale(dx, dy, maxSpeed); fx += (dx * s - vx[i]) * 1.8; fy += (dy * s - vy[i]) * 1.8; }
+        }
+
+        // Limit force, integrate velocity, limit speed.
+        const fl2 = fx * fx + fy * fy;
+        if (fl2 > maxForce * maxForce) { const inv = maxForce / Math.sqrt(fl2); fx *= inv; fy *= inv; }
+        let nvx = vx[i] + fx, nvy = vy[i] + fy;
+        const sp2 = nvx * nvx + nvy * nvy;
+        if (sp2 > maxSpeed * maxSpeed) { const inv = maxSpeed / Math.sqrt(sp2); nvx *= inv; nvy *= inv; }
+        else if (sp2 < 0.0001) { nvx = vx[i] || 0.01; nvy = vy[i] || 0.01; } // avoid stalls/NaN
+        vx[i] = nvx; vy[i] = nvy;
+
+        // Advance and wrap toroidally.
+        let nx = x + nvx, ny = y + nvy;
+        if (nx < 0) nx += w; else if (nx >= w) nx -= w;
+        if (ny < 0) ny += h; else if (ny >= h) ny -= h;
+        px[i] = nx; py[i] = ny;
+
+        // Draw a ~7px triangle pointing along velocity; color by heading.
+        const ang = Math.atan2(nvy, nvx);
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const t = (ang + Math.PI) / TAU; // heading → [0,1]
+        ctx.fillStyle = sampleCss(p.palette, t, 0.95);
+        ctx.beginPath();
+        ctx.moveTo(nx + ca * 7, ny + sa * 7);                       // nose
+        ctx.lineTo(nx - ca * 3 - sa * 2.6, ny - sa * 3 + ca * 2.6); // left tail
+        ctx.lineTo(nx - ca * 3 + sa * 2.6, ny - sa * 3 - ca * 2.6); // right tail
+        ctx.closePath();
+        ctx.fill();
+      }
+    },
+
+    onPointer() { /* steering handled live in step() from pointer state */ },
+  };
+
+  // Normalize (dx,dy) to length maxSpeed; returns the scalar multiplier so the
+  // caller can build the "desired velocity" without allocating a vector.
+  function steerScale(dx, dy, maxSpeed) {
+    const l = Math.sqrt(dx * dx + dy * dy);
+    return l > 0 ? maxSpeed / l : 0;
+  }
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/physarum.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// physarum.js — Physarum polycephalum transport networks (Jones, 2010).
+//
+// Thousands of agents wander a shared chemo-attractant field. Each samples the
+// trail at three points ahead (centre/left/right), steers toward the strongest
+// scent, and deposits a little trail of its own. The field diffuses (3x3 box
+// blur) and decays each frame. From pure local rules, sprawling vein-like
+// transport networks self-organise — the slime mould "solving" the plane.
+//
+// This is a fixed-grid pixel system: the trail lives in a TW x TH Float32
+// buffer that is independent of canvas size. We colour it into an offscreen
+// ImageData and drawImage() it (scaled) onto the dpr-transformed stage, so the
+// look is identical at any window size or aspect ratio.
+
+const { ramp } = __reg["src/engine/color.js"];
+const { TAU, clamp } = __reg["src/engine/mathx.js"];
+
+const TW = 500; // grid width in cells; height derived from canvas aspect (crisp when blitted)
+
+function create() {
+  // Fixed-size simulation state, allocated in init().
+  let trail = null; // Float32Array(TW*TH) current chemo field
+  let next = null; // Float32Array(TW*TH) scratch for the diffuse/decay pass
+  let ax = null; // agent x in grid space [0,TW)
+  let ay = null; // agent y in grid space [0,TH)
+  let ah = null; // agent heading (radians)
+  let agents = 0;
+  let TH = 0;
+  let img = null; // ImageData(TW,TH) reused every frame
+  let off = null; // offscreen <canvas> we putImageData into
+  let octx = null;
+  let lut = null; // Uint8ClampedArray palette ramp (256*3)
+  let lutName = ''; // palette the lut was built for (rebuild on change)
+
+  // Sample the trail at a continuous (toroidal) grid coordinate via the cell.
+  // Math.floor (NOT | 0) so negative sensor coords wrap correctly at the seam:
+  // gx=-0.3 must land on cell TW-1, but (-0.3 | 0) === 0 would mis-map it to 0.
+  function senseAt(gx, gy) {
+    let x = Math.floor(gx) % TW;
+    let y = Math.floor(gy) % TH;
+    if (x < 0) x += TW;
+    if (y < 0) y += TH;
+    return trail[y * TW + x];
+  }
+
+  return {
+    meta: {
+      id: 'physarum',
+      name: 'Physarum',
+      blurb: 'Slime-mould agents sniffing out living transport networks.',
+      category: 'Life',
+    },
+
+    params: [
+      { key: 'agents', label: 'Agents', type: 'int', min: 2000, max: 60000, step: 1000, default: 18000, structural: true, hint: 'More agents = denser, faster-forming networks' },
+      { key: 'sensorAngle', label: 'Sensor angle', type: 'range', min: 0.2, max: 1.4, step: 0.01, default: 0.6, hint: 'Spread of the left/right feelers (radians)' },
+      { key: 'sensorDist', label: 'Sensor distance', type: 'range', min: 2, max: 24, step: 0.5, default: 9, hint: 'How far ahead each agent smells' },
+      { key: 'turnSpeed', label: 'Turn speed', type: 'range', min: 0.1, max: 1.2, step: 0.01, default: 0.4, hint: 'Steering response (radians/step)' },
+      { key: 'deposit', label: 'Deposit', type: 'range', min: 1, max: 16, step: 0.5, default: 5, hint: 'Trail strength left behind' },
+      { key: 'decay', label: 'Decay', type: 'range', min: 0.80, max: 0.99, step: 0.005, default: 0.92, hint: 'Higher = trails persist longer' },
+      { key: 'brightness', label: 'Brightness', type: 'range', min: 0.2, max: 3, step: 0.05, default: 1 },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'moss', options: [
+        { value: 'moss', label: 'Moss' }, { value: 'ember', label: 'Ember' },
+        { value: 'ice', label: 'Ice' }, { value: 'abyss', label: 'Abyss' },
+        { value: 'spectral', label: 'Spectral' }, { value: 'cyber', label: 'Cyber' },
+        { value: 'coral', label: 'Coral' }, { value: 'mono', label: 'Mono' },
+      ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard against zero-size stage
+      // Derive grid height from aspect; clamp so the buffer stays bounded.
+      TH = clamp(Math.round(TW * (c.height / c.width)), 60, 900);
+      const N = TW * TH;
+      trail = new Float32Array(N);
+      next = new Float32Array(N);
+
+      agents = c.params.agents | 0;
+      ax = new Float32Array(agents);
+      ay = new Float32Array(agents);
+      ah = new Float32Array(agents);
+      for (let i = 0; i < agents; i++) {
+        ax[i] = c.rng.next() * TW;
+        ay[i] = c.rng.next() * TH;
+        ah[i] = c.rng.next() * TAU;
+      }
+
+      // Offscreen buffer at grid resolution; drawImage scales it to the stage.
+      off = document.createElement('canvas');
+      off.width = TW;
+      off.height = TH;
+      octx = off.getContext('2d');
+      img = octx.createImageData(TW, TH);
+      // Opaque alpha channel once; we only rewrite RGB each frame.
+      const d = img.data;
+      for (let i = 3; i < d.length; i += 4) d[i] = 255;
+
+      lutName = c.params.palette;
+      lut = ramp(lutName, 256);
+
+      c.clear(1);
+    },
+
+    step(c) {
+      if (!trail) return;
+      const p = c.params;
+      const sd = p.sensorDist;
+      const sa = p.sensorAngle;
+      const ts = p.turnSpeed;
+      const dep = p.deposit;
+      const decay = p.decay;
+
+      // ---- 1) sense + steer + move + deposit ------------------------------
+      for (let i = 0; i < agents; i++) {
+        const x = ax[i], y = ay[i], hgt = ah[i];
+        // Three feelers ahead of the agent.
+        const cF = senseAt(x + Math.cos(hgt) * sd, y + Math.sin(hgt) * sd);
+        const lF = senseAt(x + Math.cos(hgt - sa) * sd, y + Math.sin(hgt - sa) * sd);
+        const rF = senseAt(x + Math.cos(hgt + sa) * sd, y + Math.sin(hgt + sa) * sd);
+
+        let nh = hgt;
+        if (cF >= lF && cF >= rF) {
+          // straight ahead is best — keep heading
+        } else if (lF > rF) {
+          nh = hgt - ts;
+        } else if (rF > lF) {
+          nh = hgt + ts;
+        } else {
+          // ambiguous: pick a random turn (deterministic via seeded rng)
+          nh = hgt + (c.rng.next() < 0.5 ? -ts : ts);
+        }
+
+        // Advance one cell along the new heading (speed = 1.0), wrap toroidally.
+        // cos/sin in [-1,1] and x in [0,TW) => nx in (-1, TW+1): one shift wraps it.
+        let nx = x + Math.cos(nh);
+        let ny = y + Math.sin(nh);
+        if (nx < 0) nx += TW; else if (nx >= TW) nx -= TW;
+        if (ny < 0) ny += TH; else if (ny >= TH) ny -= TH;
+
+        ax[i] = nx; ay[i] = ny; ah[i] = nh;
+
+        // Deposit at the destination cell. Clamp the integer cell defensively so
+        // a floating-point value landing exactly on TW/TH can never index out of
+        // bounds (rule: step() must not throw).
+        let cx = nx | 0; if (cx >= TW) cx = TW - 1;
+        let cy = ny | 0; if (cy >= TH) cy = TH - 1;
+        trail[cy * TW + cx] += dep;
+      }
+
+      // ---- 2) diffuse (3x3 box blur) then decay, into `next`, then swap ---
+      const inv9 = 1 / 9;
+      for (let y = 0; y < TH; y++) {
+        const ym = (y - 1 + TH) % TH, yp = (y + 1) % TH;
+        const r0 = ym * TW, r1 = y * TW, r2 = yp * TW;
+        for (let x = 0; x < TW; x++) {
+          const xm = x === 0 ? TW - 1 : x - 1;
+          const xp = x === TW - 1 ? 0 : x + 1;
+          const sum =
+            trail[r0 + xm] + trail[r0 + x] + trail[r0 + xp] +
+            trail[r1 + xm] + trail[r1 + x] + trail[r1 + xp] +
+            trail[r2 + xm] + trail[r2 + x] + trail[r2 + xp];
+          next[r1 + x] = sum * inv9 * decay;
+        }
+      }
+      const tmp = trail; trail = next; next = tmp; // swap buffers
+
+      // ---- 3) render trail -> palette -> ImageData -> drawImage -----------
+      if (p.palette !== lutName) { lutName = p.palette; lut = ramp(lutName, 256); }
+      const bright = p.brightness;
+      const data = img.data;
+      const N = TW * TH;
+      for (let i = 0, j = 0; i < N; i++, j += 4) {
+        // Brief: t = clamp(trail * brightness, 0, 1), then palette lookup.
+        let t = trail[i] * bright;
+        if (t < 0) t = 0; else if (t > 1) t = 1;
+        const k = ((t * 255) | 0) * 3; // 0..255 -> ramp index (lut is 256*3)
+        data[j] = lut[k];
+        data[j + 1] = lut[k + 1];
+        data[j + 2] = lut[k + 2];
+      }
+      octx.putImageData(img, 0, 0);
+      // drawImage respects the dpr transform; scale grid -> full logical rect.
+      // Smooth the upscale so thin veins read as soft filaments, not blocky cells.
+      c.ctx.imageSmoothingEnabled = true;
+      c.ctx.drawImage(off, 0, 0, c.width, c.height);
+    },
+
+    onPointer(c, type) {
+      // While dragging, stamp a soft blob of trail at the pointer so the user
+      // can seed new colonies and watch networks rewire toward them.
+      // (!trail guard also covers the zero-size stage, where width/height are 0.)
+      if (!trail || (!c.pointer.down && type !== 'down')) return;
+      const gx = Math.floor((c.pointer.x / c.width) * TW);
+      const gy = Math.floor((c.pointer.y / c.height) * TH);
+      const R = 6;
+      const amp = c.params.deposit * 8;
+      const r2 = R * R;
+      for (let dy = -R; dy <= R; dy++) {
+        for (let dx = -R; dx <= R; dx++) {
+          const d2 = dx * dx + dy * dy;
+          if (d2 > r2) continue;
+          // Math.floor-based wrap (handles negative gx+dx at the seam correctly).
+          let x = (gx + dx) % TW; if (x < 0) x += TW;
+          let y = (gy + dy) % TH; if (y < 0) y += TH;
+          trail[y * TW + x] += amp * (1 - d2 / r2);
+        }
+      }
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/wavefunctioncollapse.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// wavefunctioncollapse.js — tiled Wave Function Collapse with edge-socket
+// matching. Cells hold a bitmask of still-possible tile ids; each "observation"
+// collapses the lowest-entropy cell (weighted random) then propagates socket
+// constraints to neighbours until the wave is consistent again. On any
+// contradiction — or once the whole grid is decided — we reseed and start over,
+// so the field keeps weaving fresh tilings forever.
+//
+// Edges are indexed N=0, E=1, S=2, W=3. A socket is 1 if a path crosses that
+// edge's midpoint, else 0; two cells may sit side by side only if their facing
+// edge sockets match. Truchet arcs (all sockets 1) always fit, so there we bias
+// collapse weights toward continuing a neighbour's arc into long loops. The
+// "pipes" set adds blanks and straights for genuine constraint propagation.
+//
+// This is a VECTOR system: tiles are stroked directly onto c.ctx in logical
+// pixels (no ImageData/offscreen needed — that pattern is only for pixel grids).
+
+const { sampleCss } = __reg["src/engine/color.js"];
+const { TAU, PI, HALF_PI } = __reg["src/engine/mathx.js"];
+
+// A tile = { sockets:[N,E,S,W], draw(ctx,x,y,s), w }. `s` is the cell size in px.
+// Each quarter-arc is its OWN subpath (beginPath + arc + stroke). Drawing two
+// arcs in a single subpath would make canvas connect them with a stray chord.
+function arcA(ctx, x, y, s) {
+  const r = s * 0.5;
+  // N-W: quarter circle centred on the NW corner (N-mid → W-mid).
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, HALF_PI);
+  ctx.stroke();
+  // S-E: quarter circle centred on the SE corner (S-mid → E-mid).
+  ctx.beginPath();
+  ctx.arc(x + s, y + s, r, PI, PI + HALF_PI);
+  ctx.stroke();
+}
+function arcB(ctx, x, y, s) {
+  const r = s * 0.5;
+  // N-E: centred on the NE corner (E-mid → N-mid).
+  ctx.beginPath();
+  ctx.arc(x + s, y, r, HALF_PI, PI);
+  ctx.stroke();
+  // S-W: centred on the SW corner (W-mid → S-mid).
+  ctx.beginPath();
+  ctx.arc(x, y + s, r, PI + HALF_PI, TAU);
+  ctx.stroke();
+}
+function straightH(ctx, x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.5);
+  ctx.lineTo(x + s, y + s * 0.5);
+  ctx.stroke();
+}
+function straightV(ctx, x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.5, y);
+  ctx.lineTo(x + s * 0.5, y + s);
+  ctx.stroke();
+}
+function blank() { /* draws nothing */ }
+
+const TILESETS = {
+  truchet: [
+    { sockets: [1, 1, 1, 1], draw: arcA, w: 1 },
+    { sockets: [1, 1, 1, 1], draw: arcB, w: 1 },
+  ],
+  pipes: [
+    { sockets: [0, 0, 0, 0], draw: blank, w: 1.4 },
+    { sockets: [0, 1, 0, 1], draw: straightH, w: 1 },
+    { sockets: [1, 0, 1, 0], draw: straightV, w: 1 },
+    { sockets: [1, 1, 1, 1], draw: arcA, w: 1.2 },
+    { sockets: [1, 1, 1, 1], draw: arcB, w: 1.2 },
+  ],
+};
+
+const OPP = [2, 3, 0, 1];      // facing edge for N,E,S,W
+const DX = [0, 1, 0, -1];      // neighbour delta x for each edge dir
+const DY = [-1, 0, 1, 0];      // neighbour delta y
+const HOLD_FRAMES = 150;       // frames to admire a finished weave before reseeding
+
+function create() {
+  let GW = 0, GH = 0, cell = 0;            // grid dims & cell size in px
+  let originX = 0, originY = 0;            // top-left to centre the grid
+  let tiles = null, full = 0;             // active tileset & all-bits mask
+  let permit = null;                      // permit[t*4+e] = neighbour tiles ok
+  let masks = null, hue = null;           // Int32 bitmask + per-cell base hue
+  let work = null, workCap = 0;           // preallocated propagation ring queue
+  let inQueue = null;                     // dedup flag so each cell queues once
+  let optIds = null, optW = null;         // preallocated weighted-collapse scratch
+  let activeSet = 'truchet';
+  let cycle = 0;                          // increments each reset (hue variety)
+  let solved = false;                     // grid fully collapsed?
+  let holdTimer = 0;                      // frames left to hold a finished weave
+
+  function popcount(m) { let n = 0; while (m) { m &= m - 1; n++; } return n; }
+
+  // Precompute, for tile `t` across edge `e`, the bitmask of neighbour tiles
+  // whose facing socket matches — the only constraint WFC needs at runtime.
+  function buildPermit() {
+    permit = new Int32Array(tiles.length * 4);
+    for (let t = 0; t < tiles.length; t++) {
+      for (let e = 0; e < 4; e++) {
+        let allow = 0;
+        const sv = tiles[t].sockets[e], face = OPP[e];
+        for (let n = 0; n < tiles.length; n++) {
+          if (tiles[n].sockets[face] === sv) allow |= (1 << n);
+        }
+        permit[t * 4 + e] = allow;
+      }
+    }
+  }
+
+  // Reset the whole grid to a fresh superposition and reseed colours.
+  function reset(c) {
+    activeSet = TILESETS[c.params.tileset] ? c.params.tileset : 'truchet';
+    tiles = TILESETS[activeSet];
+    full = (1 << tiles.length) - 1;
+    buildPermit();
+    cycle++;
+    solved = false;
+    holdTimer = 0;
+    const total = GW * GH;
+    // A contradiction can leave stale inQueue flags from the aborted propagate;
+    // clear them so the next weave starts from a clean queue.
+    if (inQueue) inQueue.fill(0);
+    // Rotate the hue field slightly each cycle so successive weaves recolour
+    // (deterministic — derived from the reset counter, never from wall time).
+    const hShift = (cycle * 0.137) % 1;
+    for (let i = 0; i < total; i++) {
+      masks[i] = full;
+      const gx = i % GW, gy = (i / GW) | 0;
+      const n = c.noise.fbm2D(gx * 0.16, gy * 0.16, { octaves: 3 }); // ~[-1,1]
+      const h = (n + 1) * 0.5 + hShift;
+      hue[i] = h - Math.floor(h);            // wrap into [0,1)
+    }
+  }
+
+  // Propagate constraints outward from the just-collapsed cell until stable.
+  // Returns false on contradiction (some cell emptied). `work` is used as a
+  // RING queue and `inQueue` dedups, so a cell is queued at most once at a time:
+  // the live queue can never exceed the cell count, so it cannot overflow and
+  // silently drop a constraint (which an earlier bounded-stack version could).
+  function propagate(start) {
+    const cap = workCap;
+    let head = 0, tail = 0;
+    work[tail] = start; tail = (tail + 1) % cap; inQueue[start] = 1;
+    while (head !== tail) {
+      const ci = work[head]; head = (head + 1) % cap; inQueue[ci] = 0;
+      const cx = ci % GW, cy = (ci / GW) | 0;
+      const m = masks[ci];
+      for (let e = 0; e < 4; e++) {
+        const nx = cx + DX[e], ny = cy + DY[e];
+        if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+        const ni = ny * GW + nx;
+        // Union of neighbour tiles permitted by ANY remaining option of `ci`.
+        let allow = 0, mm = m, idx = 0;
+        while (mm) {
+          if (mm & 1) allow |= permit[idx * 4 + e];
+          mm >>= 1; idx++;
+        }
+        const before = masks[ni];
+        const after = before & allow;
+        if (after !== before) {
+          masks[ni] = after;
+          if (after === 0) return false;           // contradiction
+          if (!inQueue[ni]) { inQueue[ni] = 1; work[tail] = ni; tail = (tail + 1) % cap; }
+        }
+      }
+    }
+    return true;
+  }
+
+  // One observation: collapse the lowest-entropy undecided cell, then propagate.
+  // Returns 'done' (all decided), 'contra' (restart needed), or 'ok'.
+  function observe(c) {
+    const total = GW * GH;
+    let best = -1, bestScore = Infinity;
+    for (let i = 0; i < total; i++) {
+      const m = masks[i];
+      // Skip decided (single bit) and — defensively — empty cells.
+      if (m === 0 || (m & (m - 1)) === 0) continue;
+      const n = popcount(m);
+      // Tiny deterministic jitter breaks ties via the seeded rng.
+      const score = n + c.rng.next() * 0.5;
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    if (best < 0) return 'done';
+
+    // Weighted random collapse. Bias toward options matching already-decided
+    // neighbours so arcs chain into long continuous loops.
+    const m = masks[best];
+    const bx = best % GW, by = (best / GW) | 0;
+    let nOpts = 0, totW = 0;
+    for (let t = 0; t < tiles.length; t++) {
+      if (!(m & (1 << t))) continue;
+      let w = tiles[t].w;
+      for (let e = 0; e < 4; e++) {
+        const nx = bx + DX[e], ny = by + DY[e];
+        if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+        const nm = masks[ny * GW + nx];
+        if (nm === 0 || (nm & (nm - 1)) !== 0) continue; // only decided neighbours
+        const nt = 31 - Math.clz32(nm);
+        if (tiles[nt].sockets[OPP[e]] === tiles[t].sockets[e]) w *= 2.2; // continuity bonus
+      }
+      optIds[nOpts] = t; optW[nOpts] = w; totW += w; nOpts++;
+    }
+    // totW >= 1 here (at least one option, each weight >= 1) — no divide-by-zero.
+    let r = c.rng.next() * totW, chosen = optIds[0];
+    for (let k = 0; k < nOpts; k++) {
+      r -= optW[k];
+      if (r <= 0) { chosen = optIds[k]; break; }
+    }
+    masks[best] = (1 << chosen);
+    return propagate(best) ? 'ok' : 'contra';
+  }
+
+  function drawCell(ctx, p, i) {
+    const m = masks[i];
+    if (m === 0 || (m & (m - 1)) !== 0) return;      // undecided/empty → leave dark
+    const t = 31 - Math.clz32(m);
+    const gx = i % GW, gy = (i / GW) | 0;
+    const x = originX + gx * cell, y = originY + gy * cell;
+    ctx.strokeStyle = sampleCss(p.palette, hue[i], 0.95);
+    tiles[t].draw(ctx, x, y, cell);
+  }
+
+  return {
+    meta: {
+      id: 'wavefunctioncollapse',
+      name: 'Wave Function Collapse',
+      blurb: 'Constraint-solved tiles weaving themselves into endless looping mazes.',
+      category: 'Tiles',
+    },
+
+    params: [
+      { key: 'tileset', label: 'Tileset', type: 'select', default: 'truchet', options: [
+        { value: 'truchet', label: 'Truchet arcs' }, { value: 'pipes', label: 'Pipes' },
+      ], hint: 'Truchet always connects; pipes add blanks & straights', structural: true },
+      { key: 'cellsAcross', label: 'Cells across', type: 'int', min: 8, max: 40, step: 1, default: 20, structural: true },
+      { key: 'speed', label: 'Observations / frame', type: 'int', min: 1, max: 30, step: 1, default: 6 },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'dusk', options: [
+        { value: 'dusk', label: 'Dusk' }, { value: 'abyss', label: 'Abyss' },
+        { value: 'spectral', label: 'Spectral' }, { value: 'ember', label: 'Ember' },
+        { value: 'ice', label: 'Ice' }, { value: 'moss', label: 'Moss' },
+        { value: 'cyber', label: 'Cyber' }, { value: 'coral', label: 'Coral' },
+      ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return;             // guard 0-size at startup
+      const across = Math.max(1, c.params.cellsAcross | 0);
+      cell = Math.max(4, Math.floor(Math.min(c.width, c.height) / across));
+      GW = Math.max(1, Math.floor(c.width / cell));
+      GH = Math.max(1, Math.floor(c.height / cell));
+      // Centre the grid in the (possibly non-square) stage.
+      originX = (c.width - GW * cell) * 0.5;
+      originY = (c.height - GH * cell) * 0.5;
+      const total = GW * GH;
+      masks = new Int32Array(total);
+      hue = new Float32Array(total);
+      // Ring queue for propagation. inQueue dedups so at most `total` cells are
+      // ever queued at once; sizing the ring well above that guarantees the head
+      // is never lapped, so no constraint is dropped and step() never allocates.
+      workCap = total + 16;
+      work = new Int32Array(workCap);
+      inQueue = new Uint8Array(total);
+      // Scratch for the largest possible option list (one entry per tile).
+      let maxTiles = 1;
+      for (const k in TILESETS) maxTiles = Math.max(maxTiles, TILESETS[k].length);
+      optIds = new Int32Array(maxTiles);
+      optW = new Float64Array(maxTiles);
+      cycle = 0;
+      reset(c);
+    },
+
+    step(c) {
+      if (!masks || !GW || !GH) return;
+      const p = c.params, ctx = c.ctx;
+      const speed = Math.max(1, p.speed | 0);
+
+      // Advance the solver, then HOLD the finished weave for a beat before
+      // reseeding. Without this the grid resets the instant its last cell
+      // collapses, so the completed (fully-connected) tiling is never seen and
+      // the field looks perpetually sparse.
+      if (solved) {
+        if (--holdTimer <= 0) reset(c);
+      } else {
+        for (let s = 0; s < speed; s++) {
+          const r = observe(c);
+          if (r === 'done') { solved = true; holdTimer = HOLD_FRAMES; break; }
+          if (r === 'contra') { reset(c); break; }
+        }
+      }
+
+      // Repaint: clean dark frame, then every decided cell's tile art.
+      c.clear(1);
+      ctx.lineWidth = Math.max(1, cell * 0.16);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const total = GW * GH;
+      for (let i = 0; i < total; i++) drawCell(ctx, p, i);
+    },
+
+    onPointer(c, type) {
+      // Click anywhere to start a fresh weave.
+      if (type === 'down' && masks) reset(c);
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/domainwarp.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// domainwarp.js — domain-warped fBm field (Inigo Quilez style).
+//
+// The classic IQ recipe: feed fBm noise through itself twice. The base
+// coordinate p is warped by a first fBm vector q, that result is warped again
+// by a second vector r, and the final value v = fbm(p + warp*r) is colored
+// through a precomputed palette ramp. Animation drifts the field by advancing
+// one of the final noise coordinates with time*speed.
+//
+// Rendered into a FIXED-SIZE offscreen buffer (SIM=240 wide) so cost is
+// independent of canvas/dpr, then drawImage-scaled to fill the logical rect.
+// Both axes use the SAME noise frequency per source pixel (invW == invH), which
+// keeps features round on any aspect: the source grid is already proportional
+// to the stage, so equal noise/source-px means equal noise/screen-px.
+
+const { ramp, PALETTES } = __reg["src/engine/color.js"];
+const { clamp } = __reg["src/engine/mathx.js"];
+
+// Five fBm evaluations per pixel make this the heaviest field. We claw back
+// budget by sampling the two WARP vectors at low detail (only the final colour
+// value needs full octaves), which buys a higher-resolution sim grid so the
+// blitted result stays crisp instead of mushy.
+const SIM = 220;       // sim width; height derived from canvas aspect
+const SIM_H_MAX = 440; // cap derived height so extreme portrait stages stay real-time
+const WARP_OCT = 2;    // low-detail octaves for the inner warp vectors
+
+function create() {
+  let off = null;      // offscreen canvas at sim resolution
+  let octx = null;     // its 2D context
+  let img = null;      // ImageData backing the offscreen
+  let data = null;     // img.data (Uint8ClampedArray, RGBA)
+  let sw = 0, sh = 0;  // sim width/height in pixels
+  let lut = null;      // Uint8ClampedArray palette ramp (256*3)
+  let lutName = '';    // palette the lut was built for (rebuild on change)
+  const opts = { octaves: 4 };       // full-detail octaves for the final value
+  const warpOpts = { octaves: WARP_OCT }; // cheap octaves for the warp vectors
+
+  function ensureLut(name) {
+    if (name !== lutName || !lut) {
+      // sample() already falls back for unknown names; guard here too so the
+      // cache key (lutName) stays meaningful across frames.
+      lut = ramp(PALETTES[name] ? name : 'abyss', 256);
+      lutName = name;
+    }
+  }
+
+  return {
+    meta: {
+      id: 'domainwarp',
+      name: 'Domain Warp',
+      blurb: 'Noise folded through itself into slow, liquid topographies.',
+      category: 'Fields',
+    },
+    params: [
+      { key: 'freq', label: 'Frequency', type: 'range', min: 1, max: 8, step: 0.1, default: 3, hint: 'Base scale of the field' },
+      { key: 'warp', label: 'Warp', type: 'range', min: 0, max: 4, step: 0.05, default: 1.6, hint: 'Strength of recursive distortion' },
+      { key: 'octaves', label: 'Octaves', type: 'int', min: 1, max: 6, step: 1, default: 4, hint: 'fBm detail of the final value' },
+      { key: 'speed', label: 'Drift', type: 'range', min: 0, max: 0.3, step: 0.005, default: 0.06, hint: 'Animation speed' },
+      { key: 'contrast', label: 'Contrast', type: 'range', min: 0.5, max: 2.5, step: 0.05, default: 1.2 },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'abyss', options: [
+        { value: 'abyss', label: 'Abyss' }, { value: 'ice', label: 'Ice' }, { value: 'dusk', label: 'Dusk' },
+        { value: 'ember', label: 'Ember' }, { value: 'spectral', label: 'Spectral' }, { value: 'moss', label: 'Moss' },
+        { value: 'cyber', label: 'Cyber' }, { value: 'sand', label: 'Sand' } ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // guard against zero-size init
+      sw = SIM;
+      sh = clamp(Math.round(SIM * c.height / c.width), 1, SIM_H_MAX);
+      off = document.createElement('canvas');
+      off.width = sw;
+      off.height = sh;
+      octx = off.getContext('2d');
+      img = octx.createImageData(sw, sh);
+      data = img.data;
+      // Opaque alpha for every pixel; only RGB changes per frame.
+      for (let p = 3; p < data.length; p += 4) data[p] = 255;
+      ensureLut(c.params.palette);
+      c.ctx.imageSmoothingEnabled = true;
+    },
+
+    step(c) {
+      if (!off) return; // not initialised (zero-size at init time) — bail safely
+      const p = c.params, noise = c.noise;
+      ensureLut(p.palette);
+
+      const freq = p.freq;
+      const warp = p.warp;
+      opts.octaves = clamp(p.octaves | 0, 1, 6); // live + clamped (fbm needs >=1)
+      const contrast = p.contrast;
+      const inv = freq / sw;            // noise units per source px; same on both axes
+      const tdrift = c.time * p.speed;  // drifts the final coordinate over time
+      const d = data, L = lut;
+
+      let idx = 0;
+      for (let j = 0; j < sh; j++) {
+        const fy = j * inv;
+        for (let i = 0; i < sw; i++, idx += 4) {
+          const fx = i * inv;
+
+          // First warp vector q (low detail — only the final value needs full octaves).
+          const qx = noise.fbm2D(fx, fy, warpOpts);
+          const qy = noise.fbm2D(fx + 5.2, fy + 1.3, warpOpts);
+
+          // Second warp vector r, displaced by warp*q.
+          const wx = warp * qx, wy = warp * qy;
+          const rx = noise.fbm2D(fx + wx + 1.7, fy + wy + 9.2, warpOpts);
+          const ry = noise.fbm2D(fx + wx + 8.3, fy + wy + 2.8, warpOpts);
+
+          // Final field value, drifting over time via the y coordinate.
+          const v = noise.fbm2D(fx + warp * rx, fy + warp * ry + tdrift, opts);
+
+          // [-1,1] -> [0,1], then apply contrast around the midpoint.
+          let t = (v + 1) * 0.5;
+          t = clamp((t - 0.5) * contrast + 0.5, 0, 1);
+
+          const li = ((t * 255) | 0) * 3; // ramp index (0..255)*3, max 765 (< 768)
+          d[idx] = L[li];
+          d[idx + 1] = L[li + 1];
+          d[idx + 2] = L[li + 2];
+        }
+      }
+
+      octx.putImageData(img, 0, 0);
+      // Blit the sim buffer across the full logical rect (handles any aspect/dpr).
+      c.ctx.imageSmoothingEnabled = true;
+      c.ctx.drawImage(off, 0, 0, c.width, c.height);
+    },
+
+    dispose() {
+      off = octx = img = data = lut = null;
+      lutName = '';
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/systems/cyclic.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// cyclic.js — Griffeath's Cyclic Cellular Automaton.
+//
+// Every cell holds a state in [0, N-1] arranged as a colour wheel. A cell in
+// state s "eats" forward: if at least `threshold` of its Moore neighbours (out
+// to range R, toroidal) already hold the next state (s+1)%N, the cell advances
+// to that state. Iterated synchronously this turns seeded noise into demons
+// that consume each other and self-organise into endlessly rotating spiral
+// waves. A low threshold (default 1) gives excitable-medium dynamics where
+// fronts sweep the grid and curl into spirals within seconds; higher thresholds
+// freeze into static domains. The grid is a fixed Uint8 buffer blitted to the
+// stage via an offscreen ImageData so resolution stays independent of canvas size.
+
+const { ramp } = __reg["src/engine/color.js"];
+const { clamp } = __reg["src/engine/mathx.js"];
+
+const GW = 280;   // fixed grid width; height derives from stage aspect (capped)
+const HMAX = 640; // cap grid height so tall/portrait stages stay real-time
+// Sized for crisp cells when blitted across a large stage while staying cheap
+// (cyclic CA is just integer neighbour counts). Threshold 1 keeps spirals
+// forming quickly even on the denser grid.
+
+function create() {
+  let W = 0, H = 0, N = 0, R = 1;
+  let grid = null, next = null; // double-buffered Uint8 state grids
+  let xw = null, yw = null;     // precomputed wrapped neighbour columns / rows
+  let span = 0;                 // 2R+1 (neighbours per axis)
+  let off = null, offCtx = null, img = null, data = null;
+  let lut = null, lutPalette = null; // palette ramp LUT + the name it was built for
+
+  // Build wrap tables so the inner loop never touches the modulo operator.
+  // xw[x*span + k] = wrapped column of (x + k - R); same idea for rows.
+  function buildWrap() {
+    span = 2 * R + 1;
+    xw = new Int32Array(W * span);
+    yw = new Int32Array(H * span);
+    for (let x = 0; x < W; x++)
+      for (let k = 0; k < span; k++) xw[x * span + k] = ((x + k - R) % W + W) % W;
+    for (let y = 0; y < H; y++)
+      for (let k = 0; k < span; k++) yw[y * span + k] = ((y + k - R) % H + H) % H;
+  }
+
+  // Fill every cell with a uniformly random state in [0, N-1] from the seeded
+  // RNG. Must cover the whole W*H grid — seeding only part of it leaves a near
+  // uniform field that can never self-organise into spirals.
+  function seed(c) {
+    const cells = W * H;
+    for (let i = 0; i < cells; i++) grid[i] = c.rng.int(0, N - 1);
+  }
+
+  return {
+    meta: {
+      id: 'cyclic',
+      name: 'Cyclic Automaton',
+      blurb: 'Cells devouring each other in slow, hypnotic spiral storms.',
+      category: 'Reaction',
+    },
+    params: [
+      { key: 'states', label: 'States', type: 'int', min: 3, max: 16, step: 1, default: 8, structural: true, hint: 'Colours in the cycle (N)' },
+      { key: 'threshold', label: 'Threshold', type: 'int', min: 1, max: 5, step: 1, default: 1, hint: 'Neighbours needed to advance (low = excitable, spiral waves)' },
+      { key: 'range', label: 'Range', type: 'int', min: 1, max: 2, step: 1, default: 1, structural: true, hint: 'Moore neighbourhood radius' },
+      { key: 'speed', label: 'Speed', type: 'int', min: 1, max: 8, step: 1, default: 6, hint: 'Generations per frame (higher = spirals form sooner)' },
+      { key: 'palette', label: 'Palette', type: 'select', default: 'spectral', options: [
+        { value: 'spectral', label: 'Spectral' }, { value: 'cyber', label: 'Cyber' },
+        { value: 'ice', label: 'Ice' }, { value: 'ember', label: 'Ember' },
+        { value: 'dusk', label: 'Dusk' }, { value: 'moss', label: 'Moss' },
+        { value: 'coral', label: 'Coral' }, { value: 'abyss', label: 'Abyss' } ] },
+    ],
+
+    init(c) {
+      if (!c.width || !c.height) return; // stage not sized yet — bail safely
+      N = clamp(c.params.states | 0, 3, 16); // state count == colour-cycle length
+      R = clamp(c.params.range | 0, 1, 2);
+      W = GW;
+      H = clamp(Math.round(GW * c.height / c.width), 1, HMAX); // bound portrait grids
+      const cells = W * H;
+
+      grid = new Uint8Array(cells);
+      next = new Uint8Array(cells);
+      buildWrap();
+
+      // Offscreen buffer sized to the grid; blit-scaled to the stage each frame.
+      off = document.createElement('canvas');
+      off.width = W; off.height = H;
+      offCtx = off.getContext('2d');
+      img = offCtx.createImageData(W, H);
+      data = img.data;
+      for (let i = 3; i < data.length; i += 4) data[i] = 255; // opaque alpha
+
+      lut = ramp(c.params.palette, 256);
+      lutPalette = c.params.palette;
+      seed(c);
+    },
+
+    step(c) {
+      if (!N) return; // not initialised (degenerate size) — bail safely
+      const p = c.params;
+      const thr = clamp(p.threshold | 0, 1, 5);
+      const iters = clamp(p.speed | 0, 1, 8);
+      const w = W, h = H, n = N, sp = span;
+
+      // Rebuild the palette LUT only when the selection actually changes.
+      if (p.palette !== lutPalette) { lut = ramp(p.palette, 256); lutPalette = p.palette; }
+
+      // Run `speed` synchronous generations. Each cell counts Moore neighbours
+      // (range R, toroidal) holding the next state (s+1)%n and advances if the
+      // tally meets the threshold; otherwise it is copied unchanged.
+      for (let it = 0; it < iters; it++) {
+        for (let y = 0; y < h; y++) {
+          const yb = y * sp, row = y * w;
+          for (let x = 0; x < w; x++) {
+            const i = row + x;
+            const s = grid[i];
+            const want = s + 1 === n ? 0 : s + 1; // (s+1) % n without the divide
+            let count = 0;
+            const xb = x * sp;
+            for (let ky = 0; ky < sp; ky++) {
+              const ny = yw[yb + ky] * w;
+              for (let kx = 0; kx < sp; kx++) {
+                if (grid[ny + xw[xb + kx]] === want) count++;
+              }
+            }
+            // The centre cell holds s, never == want, so it never self-counts.
+            next[i] = count >= thr ? want : s;
+          }
+        }
+        const t = grid; grid = next; next = t; // swap buffers, no allocation
+      }
+
+      // Render state -> t in [0,1] -> palette LUT -> ImageData.
+      const denom = n > 1 ? n - 1 : 1;
+      const cells = w * h;
+      for (let i = 0; i < cells; i++) {
+        const li = ((grid[i] / denom) * 255 | 0) * 3;
+        const o = i * 4;
+        data[o] = lut[li];
+        data[o + 1] = lut[li + 1];
+        data[o + 2] = lut[li + 2];
+      }
+      offCtx.putImageData(img, 0, 0);
+
+      // Blit the grid across the full logical rect (handles any aspect / dpr).
+      c.ctx.imageSmoothingEnabled = true;
+      c.ctx.drawImage(off, 0, 0, c.width, c.height);
+    },
+  };
+}
+
+  __exports["default"] = create;
+  return __exports;
+})();
+
+__reg["src/main.js"] = (function () {
+  "use strict";
+  var __exports = {};
+// main.js — boot Morphogen: build the registry, wire the UI, start the engine.
+
+const { Registry } = __reg["src/engine/registry.js"];
+const { Engine } = __reg["src/engine/engine.js"];
+const { Gallery } = __reg["src/ui/gallery.js"];
+
+// --- System registry -------------------------------------------------------
+// Each system is a default-exported factory. Registration order is the order
+// shown in the gallery. New systems are added with a single import + register.
+const flowfield = __reg["src/systems/flowfield.js"].default;
+const reactiondiffusion = __reg["src/systems/reactiondiffusion.js"].default;
+const particlelife = __reg["src/systems/particlelife.js"].default;
+const attractors = __reg["src/systems/attractors.js"].default;
+const lsystem = __reg["src/systems/lsystem.js"].default;
+const lenia = __reg["src/systems/lenia.js"].default;
+const differentialgrowth = __reg["src/systems/differentialgrowth.js"].default;
+const boids = __reg["src/systems/boids.js"].default;
+const physarum = __reg["src/systems/physarum.js"].default;
+const wavefunctioncollapse = __reg["src/systems/wavefunctioncollapse.js"].default;
+const domainwarp = __reg["src/systems/domainwarp.js"].default;
+const cyclic = __reg["src/systems/cyclic.js"].default;
+
+const registry = new Registry();
+for (const factory of [
+  flowfield,
+  domainwarp,
+  reactiondiffusion,
+  lenia,
+  physarum,
+  particlelife,
+  boids,
+  differentialgrowth,
+  attractors,
+  lsystem,
+  wavefunctioncollapse,
+  cyclic,
+]) {
+  try {
+    registry.register(factory);
+  } catch (e) {
+    console.error('Failed to register a system:', e);
+  }
+}
+
+// --- DOM ------------------------------------------------------------------
+const $ = (sel) => document.querySelector(sel);
+const canvas = $('#stage');
+const paramRoot = $('#params');
+const galleryRoot = $('#gallery');
+
+const engine = new Engine({ canvas, paramRoot, registry });
+const gallery = new Gallery(galleryRoot, registry.list(), (id) =>
+  engine.setSystem(id),
+);
+
+// --- Toolbar wiring -------------------------------------------------------
+const els = {
+  systemName: $('#system-name'),
+  systemBlurb: $('#system-blurb'),
+  seedInput: $('#seed-input'),
+  fps: $('#fps'),
+  playIcon: $('#btn-play .icon'),
+  recordBtn: $('#btn-record'),
+  toast: $('#toast'),
+};
+
+$('#btn-gallery').addEventListener('click', () => gallery.toggle());
+$('#btn-randomize-seed').addEventListener('click', () => engine.randomizeSeed());
+$('#btn-randomize-params').addEventListener('click', () => engine.randomizeParams());
+$('#btn-restart').addEventListener('click', () => engine.restart());
+$('#btn-export').addEventListener('click', () => engine.exportPng());
+$('#btn-step').addEventListener('click', () => engine.stepOnce());
+
+$('#btn-play').addEventListener('click', () => {
+  const running = engine.togglePlay();
+  els.playIcon.textContent = running ? '❚❚' : '▶';
+});
+
+$('#btn-record').addEventListener('click', () => {
+  const on = engine.toggleRecording();
+  els.recordBtn.classList.toggle('recording', !!on);
+  els.recordBtn.title = on ? 'Stop recording' : 'Record WebM';
+});
+
+$('#btn-share').addEventListener('click', async () => {
+  const url = engine.shareUrl();
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Shareable link copied to clipboard');
+  } catch {
+    toast('Copy failed — URL is in the address bar');
+  }
+});
+
+els.seedInput.addEventListener('change', () => {
+  const v = els.seedInput.value.trim();
+  if (v) engine.setSeed(v);
+});
+
+$('#btn-panel-toggle').addEventListener('click', () => {
+  document.body.classList.toggle('panel-collapsed');
+});
+
+// --- Engine → UI ----------------------------------------------------------
+engine.on('state', (s) => {
+  if (!s.meta) return;
+  els.systemName.textContent = s.meta.name;
+  els.systemBlurb.textContent = s.meta.blurb || '';
+  els.seedInput.value = s.seed;
+  gallery.setActive(s.systemId);
+  document.title = `Morphogen · ${s.meta.name}`;
+});
+
+engine.on('fps', (fps) => {
+  els.fps.textContent = `${Math.round(fps)} fps`;
+});
+
+// --- Keyboard shortcuts ---------------------------------------------------
+document.addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+    return;
+  }
+  switch (e.key) {
+    case ' ':
+      e.preventDefault();
+      $('#btn-play').click();
+      break;
+    case 'r':
+      engine.randomizeParams();
+      break;
+    case 's':
+      engine.randomizeSeed();
+      break;
+    case 'g':
+      gallery.toggle();
+      break;
+    case 'e':
+      engine.exportPng();
+      break;
+    case 'n':
+      engine.restart();
+      break;
+    case '.':
+      engine.stepOnce();
+      break;
+    default:
+      break;
+  }
+});
+
+function toast(msg) {
+  els.toast.textContent = msg;
+  els.toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => els.toast.classList.remove('show'), 2200);
+}
+
+// --- Go -------------------------------------------------------------------
+engine.boot();
+els.playIcon.textContent = '❚❚';
+
+// Expose for automation / debugging (used by the verification screenshots).
+globalThis.__morphogen = { engine, registry, gallery };
+
+
+  return __exports;
+})();
+
+})();
+  </script>
+</body>
+</html>

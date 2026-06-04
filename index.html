@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Morphogen · Generative Systems Studio</title>
+  <meta name="description" content="A studio of generative and artificial-life systems — flow fields, reaction–diffusion, particle life, Lenia and more. Seedable, tunable, shareable." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23e98f86' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2352c5c9'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-left">
+      <button id="btn-gallery" class="btn btn-systems" title="Browse systems (G)">
+        <span class="logo-dot"></span>
+        <span class="brand">Morphogen</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="system-meta">
+        <span id="system-name" class="system-name">—</span>
+        <span id="system-blurb" class="system-blurb"></span>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <div class="seed-field" title="Seed — type any word or number">
+        <label for="seed-input">seed</label>
+        <input id="seed-input" type="text" spellcheck="false" autocomplete="off" />
+        <button id="btn-randomize-seed" class="btn icon-btn" title="Random seed (S)">⤮</button>
+      </div>
+      <div class="divider"></div>
+      <button id="btn-randomize-params" class="btn icon-btn" title="Randomize parameters (R)">🎲</button>
+      <button id="btn-restart" class="btn icon-btn" title="Restart (N)">↺</button>
+      <button id="btn-step" class="btn icon-btn" title="Step one frame (.)">⏭</button>
+      <button id="btn-play" class="btn icon-btn" title="Play / pause (Space)"><span class="icon">❚❚</span></button>
+      <div class="divider"></div>
+      <button id="btn-export" class="btn icon-btn" title="Export PNG (E)">⤓</button>
+      <button id="btn-record" class="btn icon-btn" title="Record WebM">⏺</button>
+      <button id="btn-share" class="btn icon-btn" title="Copy shareable link">🔗</button>
+    </div>
+  </header>
+
+  <main class="stage-wrap">
+    <canvas id="stage"></canvas>
+    <div id="toast" class="toast"></div>
+    <div class="status-bar">
+      <span id="fps" class="status-fps">— fps</span>
+      <span class="status-hint">drag the canvas · space to pause · G for systems</span>
+    </div>
+  </main>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <h2>Parameters</h2>
+      <button id="btn-panel-toggle" class="btn icon-btn" title="Collapse panel">⇥</button>
+    </div>
+    <div id="params" class="panel-body"></div>
+    <div class="panel-foot">
+      <span class="kbd-legend">
+        <kbd>Space</kbd> pause · <kbd>R</kbd> randomize · <kbd>S</kbd> seed · <kbd>E</kbd> export · <kbd>G</kbd> systems
+      </span>
+    </div>
+  </aside>
+
+  <div id="gallery" class="gallery-overlay"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

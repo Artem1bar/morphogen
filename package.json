@@ -1,0 +1,20 @@
+{
+  "name": "morphogen",
+  "version": "0.1.0",
+  "description": "A studio of generative and artificial-life systems — flow fields, reaction–diffusion, particle life, Lenia and more.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node build.js",
+    "test": "node --test",
+    "check": "node scripts/check.mjs"
+  },
+  "keywords": [
+    "generative",
+    "creative-coding",
+    "artificial-life",
+    "canvas",
+    "simplex-noise"
+  ]
+}

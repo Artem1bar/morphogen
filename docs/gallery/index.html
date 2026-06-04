@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Morphogen — Contact Sheet</title>
+<style>
+  :root { --bg:#07080c; --card:#0d0f16; --line:#20242f; --text:#e7e9ef; --dim:#9aa0b0; --accent:#52c5c9; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; padding: 40px; }
+  header { display:flex; align-items:baseline; gap:16px; margin: 4px 6px 28px; }
+  h1 { margin:0; font-size:26px; font-weight:650; letter-spacing:0.2px; }
+  .dot { width:16px; height:16px; border-radius:50%; display:inline-block; vertical-align:middle; margin-right:8px;
+    background: radial-gradient(circle at 35% 30%, var(--accent), #185f6e 70%); box-shadow:0 0 14px rgba(82,197,201,.5); }
+  .sub { color:var(--dim); font-size:14px; }
+  .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  figure { margin:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  figure img { display:block; width:100%; aspect-ratio: 16 / 8.2; object-fit: cover; background:#000; }
+  figcaption { padding: 11px 14px; }
+  .name { font-size:14px; font-weight:600; }
+  .cat { font-size:11px; text-transform:uppercase; letter-spacing:.7px; color:var(--accent); margin-left:8px; }
+  .blurb { font-size:12px; color:var(--dim); margin-top:3px; line-height:1.45; }
+</style>
+</head>
+<body>
+  <header>
+    <h1><span class="dot"></span>Morphogen</h1>
+    <span class="sub">Twelve generative systems · one engine · seedable &amp; shareable</span>
+  </header>
+  <div class="grid" id="grid"></div>
+  <script>
+    const SYS = [
+      ['flowfield','Flow Field','Fields','Particles drifting through an animated noise field.'],
+      ['domainwarp','Domain Warp','Fields','Noise folded through itself into liquid topographies.'],
+      ['reactiondiffusion','Reaction–Diffusion','Reaction','Gray–Scott chemistry growing coral and mazes.'],
+      ['cyclic','Cyclic Automaton','Reaction','Cells devouring each other into spiral storms.'],
+      ['lenia','Lenia','Life','Smooth continuous cellular automata — gliding lifeforms.'],
+      ['physarum','Physarum','Life','Slime-mould agents sniffing out transport networks.'],
+      ['particlelife','Particle Life','Life','Asymmetric attraction between colored species.'],
+      ['boids','Boids','Life','A restless flock from three simple rules.'],
+      ['differentialgrowth','Differential Growth','Growth','A closed thread that crowds, buckles, and folds.'],
+      ['lsystem','L-System Botany','Growth','Rewriting grammars unfurling into procedural plants.'],
+      ['attractors','Strange Attractors','Math','Clifford &amp; De Jong orbits as glowing density clouds.'],
+      ['wavefunctioncollapse','Wave Function Collapse','Tiles','Constraint-solved tiles weaving into looping mazes.'],
+    ];
+    document.getElementById('grid').innerHTML = SYS.map(([id,name,cat,blurb]) => `
+      <figure>
+        <img src="${id}.png" alt="${name}" />
+        <figcaption>
+          <span class="name">${name}</span><span class="cat">${cat}</span>
+          <div class="blurb">${blurb}</div>
+        </figcaption>
+      </figure>`).join('');
+  </script>
+</body>
+</html>
