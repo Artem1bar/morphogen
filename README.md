@@ -126,6 +126,10 @@ morphogen/
 That's the whole API. The control panel, seeding, URL sharing, export, and
 recording come for free.
 
+## Origin
+
+This project came out of a series of open-prompt experiments: an empty folder, Claude Code, and one instruction to build whatever it found interesting and make it good. I set the constraints, kept what worked, and shipped it; the code is Claude's. The full account, prompt included, is in [LAUNCH.md](LAUNCH.md).
+
 ## License
 
 MIT. Built as a demonstration of how much cohesive, working software can be
